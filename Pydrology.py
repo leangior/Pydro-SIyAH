@@ -32,22 +32,20 @@ class DetentionReservoir:
     Reservorio de Detención. Vector pars de sólo parámetro: capacidad máxima de abstracción (MaxStorage). Vector de Condiciones Iniciales (InitialConditions): Storage. Condiciones de Borde (Boundaries): Inflow, EV, y Runoff). 
     """
     type='Detention Reservoir'
-    def __init__(self,pars,InitialConditions=[0],Boundaries=[0,0,0],Proc='Abstraction',dt=1):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[0,0,0],Proc='Abstraction'):
         self.MaxStorage=pars[0]
         self.Storage=InitialConditions[0]
         self.Inflow=Boundaries[0]
         self.EV=Boundaries[1]
         self.Runoff=Boundaries[2]
         self.Proc=Proc
-        self.dt=dt
+        self.dt=1
     def computeRunoff(self):
-        end=int(1/self.dt+1)    
-        for t in range(1,end,1):
-            if self.Proc == 'Abstraction':
-                self.Runoff=max(0,self.Inflow*self.dt-self.EV*self.dt+self.Storage-self.MaxStorage)
-            if self.Proc == 'CN_h0_continuous':
-                self.Runoff=(max(self.Inflow*self.dt-self.EV*self.dt,0))**2/(self.MaxStorage-self.Storage+self.Inflow*self.dt-self.EV*self.dt)
-            self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.EV*self.dt+self.Runoff)
+        if self.Proc == 'Abstraction':
+            self.Runoff=max(0,self.Inflow-self.EV+self.Storage-self.MaxStorage)
+        if self.Proc == 'CN_h0_continuous':
+            self.Runoff=(max(self.Inflow*-self.EV,0))**2/(self.MaxStorage-self.Storage+self.Inflow-self.EV)
+        self.Storage=waterBalance(self.Storage,self.Inflow,self.EV+self.Runoff)
 
 
 #1.B Reservorio Lineal. 
@@ -69,16 +67,16 @@ class LinearReservoir:
             self.dt=dt
     def computeOutFlow(self):
         if self.Proc == 'Agg':
-            self.Outflow=(1/self.K)*(self.Storage+self.Inflow*self.dt)
-            self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
+            self.Outflow=(1/self.K)*(self.Storage+self.Inflow)
+            self.Storage=waterBalance(self.Storage,self.Inflow,self.Outflow)
         if self.Proc == 'Instant':
             end=int(1/self.dt+1)    
             for t in range(1,end,1):
                 self.Outflow=(1/self.K)*(self.Storage)
                 self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
         if self.Proc == 'API':
-            self.Outflow=(1/self.K)*(self.Storage)+self.Inflow*self.dt
-            self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
+            self.Outflow=(1/self.K)*(self.Storage)+self.Inflow
+            self.Storage=waterBalance(self.Storage,self.Inflow,self.Outflow)
 
 #2. Objetos PQ/QQ: Funciones de Distribución Temporal
 
