@@ -44,10 +44,10 @@ class DetentionReservoir:
         end=int(1/self.dt+1)    
         for t in range(1,end,1):
             if self.Proc == 'Abstraction':
-                self.Runoff=max(0,self.Inflow-self.EV+self.Storage-self.MaxStorage)
+                self.Runoff=max(0,self.Inflow*self.dt-self.EV*self.dt+self.Storage-self.MaxStorage)
             if self.Proc == 'CN_h0_continuous':
-                self.Runoff=(max(self.Inflow-self.EV,0))**2/(self.MaxStorage-self.Storage+self.Inflow-self.EV)
-            self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,(self.EV+self.Runoff)*self.dt)
+                self.Runoff=(max(self.Inflow*self.dt-self.EV*self.dt,0))**2/(self.MaxStorage-self.Storage+self.Inflow*self.dt-self.EV*self.dt)
+            self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.EV*self.dt+self.Runoff)
 
 
 #1.B Reservorio Lineal. 
