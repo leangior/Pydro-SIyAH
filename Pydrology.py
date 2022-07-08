@@ -69,7 +69,7 @@ class LinearReservoir:
             self.dt=dt
     def computeOutFlow(self):
         if self.Proc == 'Agg':
-            self.Outflow=(1/self.K)*(self.Storage+self.Inflow)
+            self.Outflow=(1/self.K)*(self.Storage+self.Inflow*self.dt)
             self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
         if self.Proc == 'Instant':
             end=int(1/self.dt+1)    
@@ -77,7 +77,7 @@ class LinearReservoir:
                 self.Outflow=(1/self.K)*(self.Storage)
                 self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
         if self.Proc == 'API':
-            self.Outflow=(1/self.K)*(self.Storage)+self.Inflow
+            self.Outflow=(1/self.K)*(self.Storage)+self.Inflow*self.dt
             self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
 
 #2. Objetos PQ/QQ: Funciones de Distribución Temporal
