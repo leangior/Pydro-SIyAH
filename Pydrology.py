@@ -100,7 +100,7 @@ class LinearReservoirCascade:
         else:
             self.Outflow=Boundaries[1]
         self.dt=dt
-    def ComputeOutflow(self):
+    def computeOutFlow(self):
         dt=self.dt
         k=self.K    
         c=math.exp(-dt/k)
