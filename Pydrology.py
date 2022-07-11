@@ -1,12 +1,20 @@
 #/usr/bin/python3
 #Librería de métodos para modelación hidrológica SSIyAH-INA, 2022
 import math
+from sys import maxsize
+from zlib import MAX_WBITS
 import numpy  as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os, glob
 
 #0. Definición de funciones (métodos transversales)
+
+def differentiate(list):
+    dif=[0]*len(list)
+    for i in range(1,len(list)):
+        dif[i]=list[i]-list[i-1]
+    return dif
 
 #Computa Ecuación de Conservación
 def waterBalance(Storage,Inflow,Outflow):
@@ -22,7 +30,9 @@ def computeEVR(P,EV0,Storage,MaxStorage):
 def apportion(Inflow,phi=0.1):
     return(Inflow*phi)
 
-#Método CN (Eventos) [Agregar]
+#Computa Runoff a partir del valor de Precipitación Efectiva Pe (acumulado en intervalo) y del almacenamiento a capacidad de campo o máximo almacenamiento
+def curveNumberRunoff(NetRainfall,MaxStorage,Storage):
+    return NetRainfall**2/(MaxStorage-Storage+NetRainfall)
 
 #1. Objetos PQ: Componente de Producción de Escorrentía 
 
@@ -32,12 +42,12 @@ class DetentionReservoir:
     Reservorio de Detención. Vector pars de sólo parámetro: capacidad máxima de abstracción (MaxStorage). Vector de Condiciones Iniciales (InitialConditions): Storage. Condiciones de Borde (Boundaries): Inflow, EV, y Runoff). 
     """
     type='Detention Reservoir'
-    def __init__(self,pars,InitialConditions=[0],Boundaries=[0,0,0],Proc='Abstraction'):
+    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0,0],Proc='Abstraction'):
         self.MaxStorage=pars[0]
         self.Storage=InitialConditions[0]
+        self.Runoff=InitialConditions[1]
         self.Inflow=Boundaries[0]
         self.EV=Boundaries[1]
-        self.Runoff=Boundaries[2]
         self.Proc=Proc
         self.dt=1
     def computeRunoff(self):
@@ -51,15 +61,15 @@ class DetentionReservoir:
 #1.B Reservorio Lineal. 
 class LinearReservoir:
     """
-    Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage. Condiciones de Borde (Boundaries): Inflow, Outflow y EV).
+    Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage y Outflow. Condiciones de Borde (Boundaries): Inflow y EV.
     """
     type='Linear Reservoir'
-    def __init__(self,pars,InitialConditions=[0],Boundaries=[0,0,0],Proc='Agg',dt=1):
+    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0,0],Proc='Agg',dt=1):
         self.K=pars[0]
         self.Storage=InitialConditions[0]
+        self.Outflow=InitialConditions[1]
         self.Inflow=Boundaries[0] 
-        self.Outflow=Boundaries[1]
-        self.EV=Boundaries[2]
+        self.EV=Boundaries[1]
         self.Proc=Proc
         if Proc == ('Agg' or 'API'):
             self.dt=1
@@ -72,11 +82,43 @@ class LinearReservoir:
         if self.Proc == 'Instant':
             end=int(1/self.dt+1)    
             for t in range(1,end,1):
-                self.Outflow=(1/self.K)*(self.Storage)
                 self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
+                self.Outflow=(1/self.K)*(self.Storage)
         if self.Proc == 'API':
-            self.Outflow=(1/self.K)*(self.Storage)+self.Inflow
-            self.Storage=waterBalance(self.Storage,self.Inflow,self.Outflow)
+            self.Storage=(1-1/self.K)*(self.Storage)+self.Inflow
+            self.Outflow=(1/self.K)*self.Storage
+
+class SCS_Reservoirs:
+    type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
+    def __init__(self,pars,InitialConditions=[0,0,0],Boundaries=[0],Proc='Time Discrete Agg'):
+        self.Abstraction=pars[0]
+        self.MaxStorage=pars[1]
+        self.Precipitation=Boundaries
+        self.SoilStorage=InitialConditions[0]
+        self.SurfaceStorage=[InitialConditions[1]]*len(self.Precipitation)
+        self.Runoff=[InitialConditions[2]]*len(self.Precipitation)
+        self.Infiltration=[0]*len(self.Precipitation)
+        self.CumPrecip=[0]*len(self.Precipitation)
+        self.NetRainfall=[0]*len(self.Precipitation) 
+        self.Proc=Proc
+        self.dt=1
+    def computeAbstractionAndRunoff(self):
+        for i in range(0,len(self.Precipitation)):
+            if i == 0:
+                  self.CumPrecip[i]=self.CumPrecip[i]+self.Precipitation[i]
+            else:
+                  self.CumPrecip[i]=self.CumPrecip[i-1]+self.Precipitation[i]
+            if self.CumPrecip[i]-self.Abstraction > 0:
+                   self.NetRainfall[i] = self.CumPrecip[i]-self.Abstraction
+                   self.Runoff[i] = curveNumberRunoff(self.NetRainfall[i],self.MaxStorage,self.SoilStorage)
+                   self.Infiltration[i]=self.NetRainfall[i]-self.Runoff[i]
+            else:
+                    self.NetRainfall[i] = 0
+                    self.Runoff[i] = 0
+            self.SurfaceStorage[i]=min(self.Abstraction,self.CumPrecip[i])
+        self.Runoff=differentiate(self.Runoff)
+        self.NetRainfall=differentiate(self.NetRainfall)
+        self.Infiltration=differentiate(self.Infiltration)        
 
 #2. Objetos PQ/QQ: Funciones de Distribución Temporal
 
