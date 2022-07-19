@@ -10,6 +10,11 @@ import os, glob
 
 #0. Definición de funciones (métodos transversales)
 
+def testPlot(Inflow,Outflow):
+    plt.plot(Inflow,'r')
+    plt.plot(Outflow,'b')
+    plt.show()
+
 def differentiate(list):
     dif=[0]*len(list)
     for i in range(1,len(list)):
@@ -61,13 +66,13 @@ class DetentionReservoir:
 #1.B Reservorio Lineal. 
 class LinearReservoir:
     """
-    Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage y Outflow. Condiciones de Borde (Boundaries): Inflow y EV.
+    Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage, con el cual computa Outflow. Condiciones de Borde (Boundaries): Inflow y EV.
     """
     type='Linear Reservoir'
-    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0,0],Proc='Agg',dt=1):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[0,0],Proc='Agg',dt=1):
         self.K=pars[0]
         self.Storage=InitialConditions[0]
-        self.Outflow=InitialConditions[1]
+        self.Outflow=self.K*self.Storage
         self.Inflow=Boundaries[0] 
         self.EV=Boundaries[1]
         self.Proc=Proc
@@ -88,15 +93,18 @@ class LinearReservoir:
             self.Storage=(1-1/self.K)*(self.Storage)+self.Inflow
             self.Outflow=(1/self.K)*self.Storage
 
-class SCS_Reservoirs:
+class SCSReservoirs:
+    """
+    Sistema de 2 reservorios de detención (intercepción/abstracción superficial y detención en perfil de suelo - i.e. capacidad de campo-), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service. Vector pars de dos parámetros: Máximo Almacenamiento Superficial (Abstraction) y Máximo Almacenamiento por Detención en Perfil de Suelo (MaxStorage). Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
+    """
     type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
-    def __init__(self,pars,InitialConditions=[0,0,0],Boundaries=[0],Proc='Time Discrete Agg'):
+    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
         self.Abstraction=pars[0]
         self.MaxStorage=pars[1]
         self.Precipitation=Boundaries
-        self.SoilStorage=InitialConditions[0]
-        self.SurfaceStorage=[InitialConditions[1]]*len(self.Precipitation)
-        self.Runoff=[InitialConditions[2]]*len(self.Precipitation)
+        self.SurfaceStorage=[InitialConditions[0]]*len(self.Precipitation)
+        self.SoilStorage=InitialConditions[1]
+        self.Runoff=[0]*len(self.Precipitation)
         self.Infiltration=[0]*len(self.Precipitation)
         self.CumPrecip=[0]*len(self.Precipitation)
         self.NetRainfall=[0]*len(self.Precipitation) 
@@ -125,10 +133,10 @@ class SCS_Reservoirs:
 #2.A Cascada de Reservorios Lineales (Discreta). Dos parámetros: Tiempo de Resdiencia (K) y Número de Reservorios (N)
 class LinearReservoirCascade:
     """
-    Cascada de Reservorios Lineales (Discreta). Vector pars de dos parámetros: Tiempo de Resdiencia (K) y Número de Reservorios (N). Vector de Condiciones Iniciales (InitialConditions): Si es un escalar genera una matriz de 2xN con valor constante igual al escalar. Condiciones de Borde (Boundaries): Inflow,Outflow (en este caso puede incluirse una matriz de caudales de 2XN)
+    Cascada de Reservorios Lineales (Discreta). Vector pars de dos parámetros: Tiempo de Residencia (K) y Número de Reservorios (N). Vector de Condiciones Iniciales (InitialConditions): Si es un escalar (debe ingresarse como elemento de lista) genera una matriz de 2xN con valor constante igual al escala, también puede ingresarse una matriz de 2XN que represente el caudal inicial en cada reservorio de la cascada. Condiciones de Borde (Boundaries): Inflow 
     """
     type='Discrete Cascade of N Linear Reservoirs with Time K'
-    def __init__(self,pars,Boundaries=[0,0],InitialConditions=[0],create='yes',Proc='Discretely Coincident',dt=1):
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[0],create='yes',Proc='Discretely Coincident',dt=1):
         self.K=pars[0]
         if not pars[1]:
             self.N=2
@@ -138,7 +146,7 @@ class LinearReservoirCascade:
         if  create == 'yes':
             self.Outflow=np.array([[InitialConditions[0]]*self.N]*2,dtype='float')
         else:
-            self.Outflow=Boundaries[1]
+            self.Outflow=np.array(InitialConditions,dtype='float')
         self.dt=dt
     def computeOutFlow(self):
         dt=self.dt
@@ -147,13 +155,91 @@ class LinearReservoirCascade:
         a=k/dt*(1-c)-c
         b=1-k/dt*(1-c)
         end=int(1/dt+1)
-        for t in range(1,end,1):
+        for n in range(1,end,1):
             self.Outflow[1][0]=self.Inflow+(self.Outflow[0][0]-self.Inflow)*c
             if self.N > 1:
                 for j in range(1,self.N,1):
                     self.Outflow[1][j]=c*self.Outflow[0][j]+a*self.Outflow[0][j-1]+b*self.Outflow[1][j-1]
             for j in range(0,self.N,1):
                 self.Outflow[0][j]=self.Outflow[1][j]
+
+#EN DESARROLLO (MUSKINGUM y CUNGE) --> VER RESTRICCIONES NUMÉRICAS y SI CONSIDERAR CURVAS HQ y BH COMO PARAMETROS DEL METODO. POR AHORA FINALIZADO MUSKINGUM CLÄSICO. CUNGE DEBE APOYARSE SOBRE EL MISMO, MODIFICANDO PARS K y X
+class MuskingumChannel:
+    """
+    Método de tránsito hidrológico de la Oficina del río Muskingum. Vector pars de dos parámetros: Tiempo de Tránsito (K) y Factor de forma (X) [Proc='Muskingum'] o . Condiciones Iniciales (InitialConditions): matriz de condiciones iniciales o valor escalar constante. Condiciones de borde: Hidrograma en nodo superior de tramo. 
+    """
+    type='Muskingum Channel'
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[0],Proc='Muskingum Routing Method',dt=1):
+        self.K=pars[0]
+        self.X=pars[1]
+        self.dt=dt
+        self.lowerbound=2*self.K*self.X
+        self.upperbound=2*self.K*(1-self.X)
+        self.Inflow=np.array(Boundaries,dtype='float')
+        self.Outflow=np.array([0]*len(self.Inflow),dtype='float')
+        self.InitialConditions=np.array(InitialConditions,dtype='float')
+        #A fin de mantener condiciones de estabilidad numérica en la propagación (conservar volumen), sobre la base de la restricción 2KX<=dt<=2K(1-X) (Chin,2000) y como dt viene fijo por la condición de borde (e.g. por defecto 'una unidad') y además se pretende respetar el valor de K, se propone incrementar la resolución espacial dividiendo el tramo en N subtramos de igual longitud, con tiempo de residencia mínimo T=K/N, para el caso dt<2KX (frecuencai de muestreo demasiado alta). Luego, aplicando el criterio de chin se sabe que el valor crítico de dt debe satisfacer dt=uT, específicamente con u=2X y T = K/N--> N=2KX/dt. Al mismo tiempo si dt>2K(1-X) (frecuencia de muestreo demasiado baja), el paso de cálculo se subdivide en M subpasos de longitud dT=2K(1-X) de forma tal que dT/dt=dt1 y M=dt/dt1. Self.tau especifica el subpaso de cálculo (siendo self.M la cantidad de subintervalos utilizados) y self.N la cantidad de subtramos. 
+        self.N=1
+        self.tau=self.dt
+        if self.dt > self.upperbound:
+            self.tau=self.upperbound
+        else:
+            if self.dt < self.lowerbound:
+               self.N=round(self.lowerbound/self.dt) 
+        self.M=round(self.dt/self.tau)
+        if self.X > 1/2:
+            raise NameError('X must be between 0 and 1/2')
+        if len(InitialConditions) == 1:
+            if InitialConditions[0] == 0:
+                self.InitialConditions=np.array([[self.Inflow[0]]*(self.N+1)]*2,dtype='float')
+            else:    
+                self.InitialConditions=np.array([[InitialConditions[0]]*(self.N+1)]*2,dtype='float')
+        if len(self.InitialConditions[0]) < self.N:
+            raise NameError('Matrix of Initial Conditions must have'+str(self.N+1)+'cols as it have'+str(self.N)+'subreaches')        
+        self.Outflow[0]=self.InitialConditions[1][self.N]
+    def computeOutFlow(self):
+        K=self.K/self.N
+        X=self.X
+        tau=self.tau
+        D=(2*K*(1-X)+tau)    
+        C0=(tau+2*K*X)/D
+        C1=(tau-2*K*X)/D
+        C2=(2*K*(1-X)-tau)/D
+        for i in range(0,len(self.Inflow)-1,1):
+            self.InitialConditions[0][0]=self.Inflow[i]
+            self.InitialConditions[1][0]=self.Inflow[i+1]
+            for j in range(1,self.N+1,1):
+                for t in range(0,self.M,1):
+                    self.InitialConditions[1][j]=C0*self.InitialConditions[0][j-1]+C1*self.InitialConditions[1][j-1]+C2*self.InitialConditions[0][j]
+                    self.InitialConditions[0][j]=self.InitialConditions[1][j]
+            self.Outflow[i+1]=max(self.InitialConditions[1][self.N],0)    
+        #Se observa que la conservación de volumen se da si ambos hidrogramas inician con la misma condición inicial en t0, específicamente con Q[t0]=0y I[t0]=0. 
+
+        # if Proc == 'Muskingum':
+        #     self.K=pars[0]
+        #     self.X=pars[1]
+        #     while self.dt >= (1-self.X)*self.K:
+        #         self.dt=self.dt*phi
+        #     if abs(self.X) > 0.5:
+        #         self.X=0.5
+        # if Proc == 'Muskingum-Cunge':
+        #     self.c=pars[0]
+        #     self.q=pars[1]
+        #     self.slope=pars[2]
+        #     self.K=self.dx/self.c
+        #     self.X=1/2*(1-self.q/(self.slope*self,c*self.dx))
+        #     #Aquí debieran ir las restricciones de Muskingum Cunge 
+        # self.Inflow=Boundaries
+        # if len(InitialConditions) == 1:
+        #     self.Outflow=np.array([[InitialConditions[0]]*(1/round(self.dx))]*2,dtype='float')
+        # else:
+        #     self.Outflow=InitialConditions[0]
+        # def computeOutflows(self): 
+        #     D=(2*self.K*(1-self.X)+self.dt)    
+        #     C0=(self.dt-2*self.K*self.X)/D
+        #     C1=(self.dt+2*self.K*self.X)/D
+        #     C2=(2*self.K*(1-self.X)-self.dt)/D
+
     
 if __name__ == "__main__":
     import sys
@@ -162,19 +248,20 @@ if __name__ == "__main__":
 
 # import Pydrology as Hydro 
 # import matplotlib.pyplot as plt
-# def TestRun(init=4,iter=100):
-#     Cascade=Hydro.LinearReservoir_Cascade(pars,dt=0.01)
-#     Cascade.ComputeOutflow()
+# def TestRun(init=4,iter=100,K=5,N=4):
+#     pars=[K,N]
+#     Cascade=Hydro.LinearReservoirCascade(pars,dt=0.01)
+#     Cascade.computeOutFlow()
 #     vals=list()
-#     vals.append(Cascade.Outflow[1][4])
+#     vals.append(Cascade.Outflow[1][N-1])
 #     Inflows=(init,0)
 #     for t in range(1,iter):
 #         if t > len(Inflows):
 #             Cascade.Inflow=0
 #         else:
 #             Cascade.Inflow=Inflows[t-1]
-#         Cascade.ComputeOutflow()
-#         vals.append(Cascade.Outflow[1][4])
+#         Cascade.computeOutFlow()
+#         vals.append(Cascade.Outflow[1][N-1])
 #     return(vals)
 
 
