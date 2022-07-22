@@ -22,7 +22,7 @@ def differentiate(list):
     return dif
 
 #Computa Ecuación de Conservación
-def waterBalance(Storage,Inflow,Outflow):
+def waterBalance(Storage=0,Inflow=0,Outflow=0):
     Storage=Inflow-Outflow+Storage
     return Storage
 
@@ -39,28 +39,29 @@ def apportion(Inflow,phi=0.1):
 def curveNumberRunoff(NetRainfall,MaxStorage,Storage):
     return NetRainfall**2/(MaxStorage-Storage+NetRainfall)
 
-#1. Objetos PQ: Componente de Producción de Escorrentía 
+#1. Proceso P-Q: Componentes de Función Producción de Escorrentía 
 
 #1.A Reservorio de Detención 
 class DetentionReservoir:
     """
-    Reservorio de Detención. Vector pars de sólo parámetro: capacidad máxima de abstracción (MaxStorage). Vector de Condiciones Iniciales (InitialConditions): Storage. Condiciones de Borde (Boundaries): Inflow, EV, y Runoff). 
+    Reservorio de Detención. Vector pars de sólo parámetro: capacidad máxima de abstracción [MaxStorage]. Condiciones Iniciales (InitialConditions): [Initial Storage] (ingresa como vector). Condiciones de Borde (Boundaries): vectior [[Inflow],[EV]]. 
     """
     type='Detention Reservoir'
-    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0,0],Proc='Abstraction'):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Abstraction'):
         self.MaxStorage=pars[0]
-        self.Storage=InitialConditions[0]
-        self.Runoff=InitialConditions[1]
-        self.Inflow=Boundaries[0]
-        self.EV=Boundaries[1]
+        self.Inflow=np.array(Boundaries[0],dtype='float')
+        self.EV=np.array(Boundaries[1],dtype='float')
+        self.Storage=np.array([InitialConditions[0]]*(len(self.Inflow)+1),dtype='float')
+        self.Runoff=np.array([0]*len(self.Inflow),dtype='float')
         self.Proc=Proc
         self.dt=1
     def computeRunoff(self):
-        if self.Proc == 'Abstraction':
-            self.Runoff=max(0,self.Inflow-self.EV+self.Storage-self.MaxStorage)
-        if self.Proc == 'CN_h0_continuous':
-            self.Runoff=(max(self.Inflow*-self.EV,0))**2/(self.MaxStorage-self.Storage+self.Inflow-self.EV)
-        self.Storage=waterBalance(self.Storage,self.Inflow,self.EV+self.Runoff)
+        for i in range(0,len(self.Inflow),1):
+            if self.Proc == 'Abstraction':
+                self.Runoff[i]=max(0,self.Inflow[i]-self.EV[i]+self.Storage[i]-self.MaxStorage)
+            if self.Proc == 'CN_h0_continuous':
+                self.Runoff[i]=(max(self.Inflow[i]-self.EV[i],0))**2/(self.MaxStorage-self.Storage[i]+self.Inflow[i]-self.EV[i])
+            self.Storage[i+1]=waterBalance(self.Storage[i],self.Inflow[i],self.EV[i]+self.Runoff[i])
 
 
 #1.B Reservorio Lineal. 
@@ -69,29 +70,35 @@ class LinearReservoir:
     Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage, con el cual computa Outflow. Condiciones de Borde (Boundaries): Inflow y EV.
     """
     type='Linear Reservoir'
-    def __init__(self,pars,InitialConditions=[0],Boundaries=[0,0],Proc='Agg',dt=1):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Agg',dt=1):
         self.K=pars[0]
-        self.Storage=InitialConditions[0]
-        self.Outflow=self.K*self.Storage
-        self.Inflow=Boundaries[0] 
-        self.EV=Boundaries[1]
+        self.Inflow=np.array(Boundaries[0],dtype='float') 
+        self.EV=np.array(Boundaries[1],dtype='float')
+        self.Storage=np.array([InitialConditions[0]]*(len(self.Inflow)+1),dtype='float')
+        self.Outflow=(1/self.K)*self.Storage
         self.Proc=Proc
         if Proc == ('Agg' or 'API'):
             self.dt=1
         if Proc == 'Instant':
             self.dt=dt
     def computeOutFlow(self):
-        if self.Proc == 'Agg':
-            self.Outflow=(1/self.K)*(self.Storage+self.Inflow)
-            self.Storage=waterBalance(self.Storage,self.Inflow,self.Outflow)
-        if self.Proc == 'Instant':
-            end=int(1/self.dt+1)    
-            for t in range(1,end,1):
-                self.Storage=waterBalance(self.Storage,self.Inflow*self.dt,self.Outflow*self.dt)
-                self.Outflow=(1/self.K)*(self.Storage)
-        if self.Proc == 'API':
-            self.Storage=(1-1/self.K)*(self.Storage)+self.Inflow
-            self.Outflow=(1/self.K)*self.Storage
+        for i in range (0,len(self.Inflow),1):
+            if self.Proc == 'Agg':
+                self.Outflow[i]=(1/self.K)*(self.Storage[i]+self.Inflow[i])
+                self.Storage[i+1]=waterBalance(self.Storage[i],self.Inflow[i],self.Outflow[i])
+            if self.Proc == 'Instant':
+                end=int(1/self.dt+1)
+                Storage=self.Storage[i]
+                Outflow=self.Outflow[i]    
+                for t in range(1,end,1):
+                    Storage=waterBalance(Storage,self.Inflow[i]*self.dt,Outflow*self.dt)
+                    Outflow=(1/self.K)*(Storage)
+                self.Storage[i+1]=Storage
+                self.Outflow[i+1]=Outflow
+            if self.Proc == 'API':
+                self.Storage[i+1]=(1-1/self.K)*self.Storage[i]+self.Inflow[i]
+                self.Outflow[i+1]=(1/self.K)*self.Storage
+                
 
 class SCSReservoirs:
     """
@@ -101,13 +108,13 @@ class SCSReservoirs:
     def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
         self.Abstraction=pars[0]
         self.MaxStorage=pars[1]
-        self.Precipitation=Boundaries
-        self.SurfaceStorage=[InitialConditions[0]]*len(self.Precipitation)
-        self.SoilStorage=InitialConditions[1]
-        self.Runoff=[0]*len(self.Precipitation)
-        self.Infiltration=[0]*len(self.Precipitation)
-        self.CumPrecip=[0]*len(self.Precipitation)
-        self.NetRainfall=[0]*len(self.Precipitation) 
+        self.Precipitation=np.array(Boundaries,dtype='float')
+        self.SurfaceStorage=np.array([InitialConditions[0]]*(len(self.Precipitation)+1),dtype='float')
+        self.SoilStorage=np.array([InitialConditions[1]]*(len(self.Precipitation)+1),dtype='float')
+        self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
+        self.CumPrecip=np.array([0]*len(self.Precipitation),dtype='float')
+        self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float') 
         self.Proc=Proc
         self.dt=1
     def computeAbstractionAndRunoff(self):
@@ -118,17 +125,19 @@ class SCSReservoirs:
                   self.CumPrecip[i]=self.CumPrecip[i-1]+self.Precipitation[i]
             if self.CumPrecip[i]-self.Abstraction > 0:
                    self.NetRainfall[i] = self.CumPrecip[i]-self.Abstraction
-                   self.Runoff[i] = curveNumberRunoff(self.NetRainfall[i],self.MaxStorage,self.SoilStorage)
+                   self.Runoff[i] = curveNumberRunoff(self.NetRainfall[i],self.MaxStorage,self.SoilStorage[0])
                    self.Infiltration[i]=self.NetRainfall[i]-self.Runoff[i]
             else:
                     self.NetRainfall[i] = 0
                     self.Runoff[i] = 0
-            self.SurfaceStorage[i]=min(self.Abstraction,self.CumPrecip[i])
+            self.SurfaceStorage[i+1]=min(self.Abstraction,self.CumPrecip[i])
         self.Runoff=differentiate(self.Runoff)
         self.NetRainfall=differentiate(self.NetRainfall)
-        self.Infiltration=differentiate(self.Infiltration)        
+        self.Infiltration=differentiate(self.Infiltration)
+        for i in range(0,len(self.SoilStorage)-1):
+            self.SoilStorage[i+1]=waterBalance(self.SoilStorage[i],self.Infiltration[i])        
 
-#2. Objetos PQ/QQ: Funciones de Distribución Temporal
+#2. Proceso P-Q: Componentes de Función Distribución de Escorrentía o Tránsito Hidrológico
 
 #2.A Cascada de Reservorios Lineales (Discreta). Dos parámetros: Tiempo de Resdiencia (K) y Número de Reservorios (N)
 class LinearReservoirCascade:
@@ -142,11 +151,12 @@ class LinearReservoirCascade:
             self.N=2
         else:
             self.N=pars[1]
-        self.Inflow=Boundaries[0]   
+        self.Inflow=np.array(Boundaries)   
         if  create == 'yes':
-            self.Outflow=np.array([[InitialConditions[0]]*self.N]*2,dtype='float')
+            self.Cascade=np.array([[InitialConditions[0]]*self.N]*2,dtype='float')
         else:
-            self.Outflow=np.array(InitialConditions,dtype='float')
+            self.Cascade=np.array(InitialConditions,dtype='float')
+        self.Outflow=np.array([InitialConditions[0]]*(len(Boundaries)+1),dtype='float')
         self.dt=dt
     def computeOutFlow(self):
         dt=self.dt
@@ -155,13 +165,15 @@ class LinearReservoirCascade:
         a=k/dt*(1-c)-c
         b=1-k/dt*(1-c)
         end=int(1/dt+1)
-        for n in range(1,end,1):
-            self.Outflow[1][0]=self.Inflow+(self.Outflow[0][0]-self.Inflow)*c
-            if self.N > 1:
-                for j in range(1,self.N,1):
-                    self.Outflow[1][j]=c*self.Outflow[0][j]+a*self.Outflow[0][j-1]+b*self.Outflow[1][j-1]
-            for j in range(0,self.N,1):
-                self.Outflow[0][j]=self.Outflow[1][j]
+        for i in range(0,len(self.Inflow)):
+            for n in range(1,end,1):
+                self.Cascade[1][0]=self.Inflow[i]+(self.Cascade[0][0]-self.Inflow[i])*c
+                if self.N > 1:
+                    for j in range(1,self.N,1):
+                        self.Cascade[1][j]=c*self.Cascade[0][j]+a*self.Cascade[0][j-1]+b*self.Cascade[1][j-1]
+                for j in range(0,self.N,1):
+                    self.Cascade[0][j]=self.Cascade[1][j]
+            self.Outflow[i+1]=self.Cascade[0][j]
 
 #EN DESARROLLO (MUSKINGUM y CUNGE) --> VER RESTRICCIONES NUMÉRICAS y SI CONSIDERAR CURVAS HQ y BH COMO PARAMETROS DEL METODO. POR AHORA FINALIZADO MUSKINGUM CLÄSICO. CUNGE DEBE APOYARSE SOBRE EL MISMO, MODIFICANDO PARS K y X
 class MuskingumChannel:
@@ -191,7 +203,7 @@ class MuskingumChannel:
             raise NameError('X must be between 0 and 1/2')
         if len(InitialConditions) == 1:
             if InitialConditions[0] == 0:
-                self.InitialConditions=np.array([[self.Inflow[0]]*(self.N+1)]*2,dtype='float')
+                self.InitialConditions=np.array([[0]*(self.N+1)]*2,dtype='float')
             else:    
                 self.InitialConditions=np.array([[InitialConditions[0]]*(self.N+1)]*2,dtype='float')
         if len(self.InitialConditions[0]) < self.N:
@@ -215,6 +227,54 @@ class MuskingumChannel:
             self.Outflow[i+1]=max(self.InitialConditions[1][self.N],0)    
         #Se observa que la conservación de volumen se da si ambos hidrogramas inician con la misma condición inicial en t0, específicamente con Q[t0]=0y I[t0]=0. 
 
+        # if Proc == 'Muskingum':
+        #     self.K=pars[0]
+        #     self.X=pars[1]
+        #     while self.dt >= (1-self.X)*self.K:
+        #         self.dt=self.dt*phi
+        #     if abs(self.X) > 0.5:
+        #         self.X=0.5
+        # if Proc == 'Muskingum-Cunge':
+        #     self.c=pars[0]
+        #     self.q=pars[1]
+        #     self.slope=pars[2]
+        #     self.K=self.dx/self.c
+        #     self.X=1/2*(1-self.q/(self.slope*self,c*self.dx))
+        #     #Aquí debieran ir las restricciones de Muskingum Cunge 
+        # self.Inflow=Boundaries
+        # if len(InitialConditions) == 1:
+        #     self.Outflow=np.array([[InitialConditions[0]]*(1/round(self.dx))]*2,dtype='float')
+        # else:
+        #     self.Outflow=InitialConditions[0]
+        # def computeOutflows(self): 
+        #     D=(2*self.K*(1-self.X)+self.dt)    
+        #     C0=(self.dt-2*self.K*self.X)/D
+        #     C1=(self.dt+2*self.K*self.X)/D
+        #     C2=(2*self.K*(1-self.X)-self.dt)/D
+
     
 if __name__ == "__main__":
     import sys
+
+#3. Modelos PQ/QQ
+
+# import Pydrology as Hydro 
+# import matplotlib.pyplot as plt
+# def TestRun(init=4,iter=100,K=5,N=4):
+#     pars=[K,N]
+#     Cascade=Hydro.LinearReservoirCascade(pars,dt=0.01)
+#     Cascade.computeOutFlow()
+#     vals=list()
+#     vals.append(Cascade.Outflow[1][N-1])
+#     Inflows=(init,0)
+#     for t in range(1,iter):
+#         if t > len(Inflows):
+#             Cascade.Inflow=0
+#         else:
+#             Cascade.Inflow=Inflows[t-1]
+#         Cascade.computeOutFlow()
+#         vals.append(Cascade.Outflow[1][N-1])
+#     return(vals)
+
+
+    
