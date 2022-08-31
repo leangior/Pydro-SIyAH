@@ -50,7 +50,7 @@ def apportion(Inflow,phi=0.1):
 def curveNumberRunoff(NetRainfall,MaxStorage,Storage):
     return NetRainfall**2/(MaxStorage-Storage+NetRainfall)
 
-#1. Proceso P-Q: Componentes de Función Producción de Escorrentía 
+#1. Proceso P-R: Componentes de Función Producción de Escorrentía (submodelos)
 
 #1.A Reservorio de Detención 
 class DetentionReservoir:
@@ -148,7 +148,7 @@ class SCSReservoirs:
         for i in range(0,len(self.SoilStorage)-1):
             self.SoilStorage[i+1]=waterBalance(self.SoilStorage[i],self.Infiltration[i])        
 
-#2. Proceso P-Q: Componentes de Función Distribución de Escorrentía o Tránsito Hidrológico
+#2. Proceso R-Q/Q-Q: Componentes de Función Distribución de Escorrentía o Tránsito Hidrológico (submodelos)
 
 #2.A Cascada de Reservorios Lineales (Discreta). Dos parámetros: Tiempo de Resdiencia (K) y Número de Reservorios (N)
 class LinearReservoirCascade:
@@ -235,57 +235,13 @@ class MuskingumChannel:
                 for t in range(0,self.M,1):
                     self.InitialConditions[1][j]=C0*self.InitialConditions[0][j-1]+C1*self.InitialConditions[1][j-1]+C2*self.InitialConditions[0][j]
                     self.InitialConditions[0][j]=self.InitialConditions[1][j]
-            self.Outflow[i+1]=max(self.InitialConditions[1][self.N],0)    
-        #Se observa que la conservación de volumen se da si ambos hidrogramas inician con la misma condición inicial en t0, específicamente con Q[t0]=0y I[t0]=0. 
-
-        # if Proc == 'Muskingum':
-        #     self.K=pars[0]
-        #     self.X=pars[1]
-        #     while self.dt >= (1-self.X)*self.K:
-        #         self.dt=self.dt*phi
-        #     if abs(self.X) > 0.5:
-        #         self.X=0.5
-        # if Proc == 'Muskingum-Cunge':
-        #     self.c=pars[0]
-        #     self.q=pars[1]
-        #     self.slope=pars[2]
-        #     self.K=self.dx/self.c
-        #     self.X=1/2*(1-self.q/(self.slope*self,c*self.dx))
-        #     #Aquí debieran ir las restricciones de Muskingum Cunge 
-        # self.Inflow=Boundaries
-        # if len(InitialConditions) == 1:
-        #     self.Outflow=np.array([[InitialConditions[0]]*(1/round(self.dx))]*2,dtype='float')
-        # else:
-        #     self.Outflow=InitialConditions[0]
-        # def computeOutflows(self): 
-        #     D=(2*self.K*(1-self.X)+self.dt)    
-        #     C0=(self.dt-2*self.K*self.X)/D
-        #     C1=(self.dt+2*self.K*self.X)/D
-        #     C2=(2*self.K*(1-self.X)-self.dt)/D
+            self.Outflow[i+1]=max(self.InitialConditions[1][self.N],0)   
 
     
 if __name__ == "__main__":
     import sys
 
-#3. Modelos PQ/QQ
-
-# import Pydrology as Hydro 
-# import matplotlib.pyplot as plt
-# def TestRun(init=4,iter=100,K=5,N=4):
-#     pars=[K,N]
-#     Cascade=Hydro.LinearReservoirCascade(pars,dt=0.01)
-#     Cascade.computeOutFlow()
-#     vals=list()
-#     vals.append(Cascade.Outflow[1][N-1])
-#     Inflows=(init,0)
-#     for t in range(1,iter):
-#         if t > len(Inflows):
-#             Cascade.Inflow=0
-#         else:
-#             Cascade.Inflow=Inflows[t-1]
-#         Cascade.computeOutFlow()
-#         vals.append(Cascade.Outflow[1][N-1])
-#     return(vals)
+#3. Modelos Hidrológicos (P-Q)
 
 
     
