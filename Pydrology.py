@@ -23,15 +23,6 @@ def differentiate(list):
         dif[i]=list[i]-list[i-1]
     return dif
 
-#Computa Función Respuesta Unitaria Cascada de n reservorios Lineales con constante de recesión k, obtenida por integración numérica a resolución dt (método del trapecio)
-# def NashCascade(k,n,dt=0.01):
-#     t=float(0)
-#     T=int(10*n*k)
-#     while t<=T:
-#         u=1/(k*math.gamma(n))*(t/k)^(n-1)*math.exp(-t/k)*1/2
-#      for i in range(0,):
-
-
 #Computa Ecuación de Conservación
 def waterBalance(Storage=0,Inflow=0,Outflow=0):
     Storage=Inflow-Outflow+Storage
