@@ -48,7 +48,7 @@ class RetentionReservoir:
     """
     Reservorio de Retención. Vector pars de sólo parámetro: capacidad máxima de abstracción [MaxStorage]. Condiciones Iniciales (InitialConditions): [Initial Storage] (ingresa como vector). Condiciones de Borde (Boundaries): vectior [[Inflow],[EV]]. 
     """
-    type='Detention Reservoir'
+    type='Retention Reservoir'
     def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Abstraction'):
         self.MaxStorage=pars[0]
         self.Inflow=np.array(Boundaries[0],dtype='float')
