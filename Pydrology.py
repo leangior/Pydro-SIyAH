@@ -44,9 +44,9 @@ def curveNumberRunoff(NetRainfall,MaxStorage,Storage):
 #1. Proceso P-R: Componentes de Función Producción de Escorrentía (submodelos)
 
 #1.A Reservorio de Detención 
-class DetentionReservoir:
+class RetentionReservoir:
     """
-    Reservorio de Detención. Vector pars de sólo parámetro: capacidad máxima de abstracción [MaxStorage]. Condiciones Iniciales (InitialConditions): [Initial Storage] (ingresa como vector). Condiciones de Borde (Boundaries): vectior [[Inflow],[EV]]. 
+    Reservorio de Retención. Vector pars de sólo parámetro: capacidad máxima de abstracción [MaxStorage]. Condiciones Iniciales (InitialConditions): [Initial Storage] (ingresa como vector). Condiciones de Borde (Boundaries): vectior [[Inflow],[EV]]. 
     """
     type='Detention Reservoir'
     def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Abstraction'):
