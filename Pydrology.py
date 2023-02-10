@@ -86,7 +86,7 @@ def curveNumberRunoff(NetRainfall,MaxStorage,Storage):
 
 #1. Proceso P-Q: Componentes de Función Producción de Escorrentía 
 
-#1.A Reservorio de Detención 
+#1.A Reservorio de Retención(Abstracción) 
 class RetentionReservoir:
     """
     Reservorio de Retención. Vector pars de sólo parámetro: capacidad máxima de abstracción [MaxStorage]. Condiciones Iniciales (InitialConditions): [Initial Storage] (ingresa como vector). Condiciones de Borde (Boundaries): vectior [[Inflow],[EV]]. 
@@ -147,7 +147,7 @@ class LinearReservoir:
 
 class SCSReservoirs:
     """
-    Sistema de 2 reservorios de detención (intercepción/abstracción superficial y detención en perfil de suelo - i.e. capacidad de campo-), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service. Vector pars de dos parámetros: Máximo Almacenamiento Superficial (Abstraction) y Máximo Almacenamiento por Detención en Perfil de Suelo (MaxStorage). Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
+    Sistema de 2 reservorios de retención (intercepción/abstracción superficial y retención en perfil de suelo - i.e. capacidad de campo-), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service. Vector pars de dos parámetros: Máximo Almacenamiento Superficial (Abstraction) y Máximo Almacenamiento por Retención en Perfil de Suelo (MaxStorage). Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
     """
     type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
     def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
@@ -272,31 +272,6 @@ class MuskingumChannel:
                     self.InitialConditions[0][j]=self.InitialConditions[1][j]
             self.Outflow[i+1]=max(self.InitialConditions[1][self.N],0)    
 
-        # if Proc == 'Muskingum':
-        #     self.K=pars[0]
-        #     self.X=pars[1]
-        #     while self.dt >= (1-self.X)*self.K:
-        #         self.dt=self.dt*phi
-        #     if abs(self.X) > 0.5:
-        #         self.X=0.5
-        # if Proc == 'Muskingum-Cunge':
-        #     self.c=pars[0]
-        #     self.q=pars[1]
-        #     self.slope=pars[2]
-        #     self.K=self.dx/self.c
-        #     self.X=1/2*(1-self.q/(self.slope*self,c*self.dx))
-        #     #Aquí debieran ir las restricciones de Muskingum Cunge 
-        # self.Inflow=Boundaries
-        # if len(InitialConditions) == 1:
-        #     self.Outflow=np.array([[InitialConditions[0]]*(1/round(self.dx))]*2,dtype='float')
-        # else:
-        #     self.Outflow=InitialConditions[0]
-        # def computeOutflows(self): 
-        #     D=(2*self.K*(1-self.X)+self.dt)    
-        #     C0=(self.dt-2*self.K*self.X)/D
-        #     C1=(self.dt+2*self.K*self.X)/D
-        #     C2=(2*self.K*(1-self.X)-self.dt)/D
-
 #2.C Tránsito Lineal con funciones de transferencia. Por defecto, se asume una distrinución gamma con parámetros n (número de reservorios) y k (tiempo de residencia). Asimismo, se considera n=2, de modo tal que tp=k (el tiempo al pico es igual al tiempo de residencia) 
 class LinearChannel:
     """
@@ -330,7 +305,6 @@ class LinearNet:
         self.Proc=Proc
         self.dt=dt
     def computeOutflow(self):
-        #revisar esta rutina
         j=0
         for channel_j in range(1,len(self.Inflows[0,:])+1):
             linear=LinearChannel(pars=self.pars[j,:],Boundaries=self.Inflows[:,j],dt=self.dt)
@@ -351,25 +325,6 @@ class LinearNet:
 if __name__ == "__main__":
     import sys
 
-#3. Modelos PQ/QQ
-
-# import Pydrology as Hydro 
-# import matplotlib.pyplot as plt
-# def TestRun(init=4,iter=100,K=5,N=4):
-#     pars=[K,N]
-#     Cascade=Hydro.LinearReservoirCascade(pars,dt=0.01)
-#     Cascade.computeOutFlow()
-#     vals=list()
-#     vals.append(Cascade.Outflow[1][N-1])
-#     Inflows=(init,0)
-#     for t in range(1,iter):
-#         if t > len(Inflows):
-#             Cascade.Inflow=0
-#         else:
-#             Cascade.Inflow=Inflows[t-1]
-#         Cascade.computeOutFlow()
-#         vals.append(Cascade.Outflow[1][N-1])
-#     return(vals)
 
 
     
