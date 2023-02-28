@@ -11,7 +11,7 @@ Asimismo, y sobre todo si los tiempos de respuesta o la memoria del sistema son 
 
  >Las proyecciones hidrológicas a escala climática exceden el alcance del ámbito operativo y corresponden más bien a una componente de análisis de escenario en otros tipos de Sistemas de Soporte a la Toma de Decisión, en todo caso, del ámbito estratégico. Esto es, el requerimiento puede presentarse en el marco de proyecto de asistencia técnica (eventual) y, de manera menos usual, podría formularse el requerimiento de generación de escenarios de forma sistemática (operativa), con periodicidad relativamente constante. Por tanto, en una primera aproximación pueden obviarse. En todo caso, los resultados obtenidos en las proyecciones hidrológicas de escala climática, en conjunto con distintos escenarios territoriales proyectados, pueden utilizarse para el diseño de líneas de desarrollo y acción en los sistemas de información y alerta para la detección temprana de sequías e inundaciones.      
 
-Para dar cuenta del **estado** de los **sistemas hídricos**, en un instante específico, el sistema de información debe brindar _estimaciones_ sobre los **principales flujos y almacenamientos** involucrados en la **fase terrestre del ciclo hidrológico**, como por ejemplo:
+Para dar cuenta del **estado** de los **sistemas hídricos**, en un instante o intervalo de tiempo, el sistema de información debe brindar _estimaciones_ sobre los **principales flujos y almacenamientos** involucrados en la **fase terrestre del ciclo hidrológico**, como por ejemplo:
 
 - Precipitación Antecedente 
 - Nivel 
