@@ -24,7 +24,7 @@ Para dar cuenta del **estado** de los **sistemas hídricos**, en un instante o i
 - Almacenamiento Subterráneo
 - Caudal 
 
-A fin de evaluar un mínimo de variables clave en la instancia de implementación de un sistema de información y alerta hidrológico, es conveniente elaborar un modelo conceptual de ciclo hidrológico de considerando los elementos más relevantes en las cuencas, áreas de aporte, lagos o lagunas bajo vigilancia. Así, por ejemplo, si el interés está centrado en la previsión del nivel o el caudal, mínimamente deberá contarse con información sobre precipitación antecedente, nivel y caudal. 
+A fin de evaluar un mínimo de variables clave en la instancia de implementación de un sistema de información y alerta hidrológico, es conveniente elaborar un modelo conceptual de ciclo hidrológico considerando los elementos más relevantes en las cuencas, áreas de aporte, lagos o lagunas bajo vigilancia. Así, por ejemplo, si el interés está centrado en la previsión del nivel o el caudal, mínimamente deberá contarse con información sobre precipitación antecedente, nivel y caudal. 
 
 El **pronóstico operativo y la perspectiva subestacional a estacional** pueden realizarse sobre la base de 2 tipos de aproximación al problema:
 
