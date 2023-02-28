@@ -64,12 +64,3 @@ Definiremos intutitivamente a la **confiabilidad** como el **grado de confianza 
 
 Los procedimientos de **pronóstico subestacional a estacional** deberán brindar información sobre ... (continuar tomando línea argumental como lo desarrollado de 35 a 47)
 
->esto es draft de ecuaciones de conservación
-
-$$\dfrac{dS}{dt}=I(t)-Q(t)$$
-$$\Delta S=\int_{t=1}^{t=2}{I(t)dt}-\int_{t=1}^{t=2}{Q(t)dt}$$
-$$KQ(t)=S(t)$$
-$$\Delta S=K(Q_2-Q_1)=\Delta t/2(I_1+I_2)-\Delta t/2(Q_1+Q_2)$$
-$$KQ_2+\Delta t/2Q_2=\Delta t/2(I_1+I_2)-\Delta t/2Q_1+KQ_1$$
-$$Q_2(K+\Delta t/2)=\Delta t/2(I_1+I_2)+Q_1(K-\Delta t/2)$$
-$$Q_2=\dfrac{\Delta t/2(I_1+I_2)+(K-\Delta t/2)Q_1}{(K+\Delta t/2)}$$
