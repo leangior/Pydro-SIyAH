@@ -416,13 +416,16 @@ class HOSH5P:
         self.routingSystem.Inflow=self.Runoff
         self.routingSystem.computeOutFlow()
         self.Q=self.bias*self.routingSystem.Outflow
+    def executeRun(self):
+        self.computeRunoff()
+        self.computeOutFlow()
 
-    #     print("continuar desde aquí... debe desarrollarse esta rutina y finalmente una que llama a ambas")<--hay que continuar desde aquí, la rutina de producción ya está liztaylor! ;P
-
+#Dummy boundaries for test
 def dummy():
-    p=[5,5,10,30,50,20,7,5,5,5,5,5,5,5,10,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,5,15,20,0]
+    p=list()
     ev=list()
-    for i in range(0,len(p)):
+    for i in range(0,1000):
+        p.append(40)
         ev.append(4)
     return(makeBoundaries(p,ev))
 
