@@ -24,8 +24,11 @@ def makeBoundaries(p=[0],evp=[0]):
     return boundaries
 
 #Diferencia una serie
-def differentiate(list):
-    dif=[0]*len(list)
+def differentiate(list,asume_initial='yes'):
+    if(asume_initial=='yes'):
+        dif=[list[0]]*len(list)
+    else:
+        dif=[0]*len(list)
     for i in range(1,len(list)):
         dif[i]=list[i]-list[i-1]
     return dif
@@ -385,9 +388,8 @@ class HOSH5P:
                 indexes.append(j)
             else:
                 if(len(indexes)>0): #Activa Rutina de cómputo SCS
-                    self.EVR1[min(indexes):max(indexes)]=0
-                    self.EVR2[min(indexes):max(indexes)]=0
-                    self.soilSystem.Precipitation=self.Precipitation[min(indexes):max(indexes)]
+                    print("ponding")
+                    self.soilSystem.Precipitation=self.Precipitation[min(indexes):max(indexes)+1]
                     self.soilSystem.CumPrecip=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
                     self.soilSystem.NetRainfall=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
                     self.soilSystem.Infiltration=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
@@ -395,22 +397,34 @@ class HOSH5P:
                     self.soilSystem.SurfaceStorage=np.array([self.SurfaceStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
                     self.soilSystem.SoilStorage=np.array([self.SoilStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
                     self.soilSystem.computeAbstractionAndRunoff()
-                    self.SurfaceStorage[min(indexes):max(indexes)+1]=self.soilSystem.SurfaceStorage
-                    self.SoilStorage[min(indexes):max(indexes)+1]=self.soilSystem.SoilStorage
-                    self.NetRainfall[min(indexes):max(indexes)]=self.soilSystem.NetRainfall
-                    self.Infiltration[min(indexes):max(indexes)]=self.soilSystem.Infiltration
-                    self.Runoff[min(indexes):max(indexes)]=self.soilSystem.Runoff
+                    self.SurfaceStorage[min(indexes):max(indexes)+2]=self.soilSystem.SurfaceStorage
+                    self.SoilStorage[min(indexes):max(indexes)+2]=self.soilSystem.SoilStorage
+                    self.NetRainfall[min(indexes):max(indexes)+1]=self.soilSystem.NetRainfall
+                    self.Infiltration[min(indexes):max(indexes)+1]=self.soilSystem.Infiltration
+                    self.Runoff[min(indexes):max(indexes)+1]=self.soilSystem.Runoff
                     indexes=list()
-                else: #Activa rutina de Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
-                    self.EVR1[j]=computeEVR(self.Precipitation[j],self.EVP[j],self.SurfaceStorage[j],self.maxSurfaceStorage)
+                if(len(indexes)==0): #Activa rutina de Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
+                    print("drying")
+                    self.EVR1[j]=self.SurfaceStorage[j]/self.maxSurfaceStorage*self.EVP[j]
                     self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
-                    self.NetRainfall[j]=max(0,self.Precipitation[j]-self.EVR1[j])
-                    self.SurfaceStorage[j+1]=waterBalance(self.SurfaceStorage[j],self.Precipitation[j],self.EVR1[j]+self.NetRainfall[j],)
-                    self.Runoff[j]=max(0,self.NetRainfall[j]-self.EVR1[j]+self.SoilStorage[j-1]-self.maxSoilStorage)
+                    self.NetRainfall[j]=max(0,self.Precipitation[j]-self.EVR1[j]+self.SurfaceStorage[j]-self.maxSurfaceStorage)
+                    self.SurfaceStorage[j+1]=waterBalance(self.SurfaceStorage[j],self.Precipitation[j],self.EVR1[j]+self.NetRainfall[j])
+                    self.Runoff[j]=max(0,self.NetRainfall[j]-self.EVR2[j]+self.SoilStorage[j-1]-self.maxSoilStorage)
                     self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j])
             j=j+1            
-    # def computeOutFlow(self):
+    def computeOutFlow(self):
+        self.routingSystem.Inflow=self.Runoff
+        self.routingSystem.computeOutFlow()
+        self.Q=self.bias*self.routingSystem.Outflow
+
     #     print("continuar desde aquí... debe desarrollarse esta rutina y finalmente una que llama a ambas")<--hay que continuar desde aquí, la rutina de producción ya está liztaylor! ;P
+
+def dummy():
+    p=[5,5,10,30,50,20,7,5,5,5,5,5,5,5,10,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,5,15,20,0]
+    ev=list()
+    for i in range(0,len(p)):
+        ev.append(4)
+    return(makeBoundaries(p,ev))
 
 
 
