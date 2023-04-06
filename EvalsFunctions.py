@@ -11,7 +11,8 @@ def mape(obs,ensembles=[]):
     ensembles=np.array(ensembles,dtype='float')
     obs=np.array([obs]*len(ensembles),dtype='float')
     ape=abs((ensembles-obs)/obs)*100
-    return(sum(ape)/len(ape))
+    mape=sum(ape)/len(ape)
+    return(mape)
 
 # Old School way
 # def mape(obs,ensembles=[]):
@@ -37,3 +38,10 @@ def prs(obs,ensembles=[]):
 def tauKendall(obs=[],sim=[]):
     tau=scipy.stats.kendalltau(sim,obs)[0]
     return(tau)
+
+#Cómputo del coeficiente de skill Nash-Sutcliffe. Indicador de la asociación 1:1 entre valores simulados y observados. 
+def nashSutcliffeScore(obs=[],sim=[]):
+    obs=np.array(obs)
+    sim=np.array(sim)
+    ns=1-sum((obs-sim)**2)/sum((obs-np.mean(obs))**2)
+    return(ns)
