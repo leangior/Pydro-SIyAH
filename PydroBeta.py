@@ -18,7 +18,7 @@ def testPlot(Inflow,Outflow):
 
 #Crea Condiciones de Borde p y evp para PQ 
 def makeBoundaries(p=[0],evp=[0]):
-    boundaries=np.array([[0]*2]*len(p))
+    boundaries=np.array([[0]*2]*len(p),dtype='float')
     boundaries[:,0]=p
     boundaries[:,1]=evp
     return boundaries
@@ -161,7 +161,7 @@ class SCSReservoirs:
     """
     type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
     def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
-        self.Abstraction=pars[0]
+        self.MaxSurfaceStorage=pars[0]
         self.MaxStorage=pars[1]
         self.Precipitation=np.array(Boundaries,dtype='float')
         self.SurfaceStorage=np.array([InitialConditions[0]]*(len(self.Precipitation)+1),dtype='float')
@@ -173,19 +173,20 @@ class SCSReservoirs:
         self.Proc=Proc
         self.dt=1
     def computeAbstractionAndRunoff(self):
+        Abstraction=self.MaxSurfaceStorage-self.SurfaceStorage[0]
         for i in range(0,len(self.Precipitation)):
             if i == 0:
                   self.CumPrecip[i]=self.CumPrecip[i]+self.Precipitation[i]
             else:
                   self.CumPrecip[i]=self.CumPrecip[i-1]+self.Precipitation[i]
-            if self.CumPrecip[i]-self.Abstraction > 0:
-                   self.NetRainfall[i] = self.CumPrecip[i]-self.Abstraction
+            if self.CumPrecip[i]-Abstraction > 0:
+                   self.NetRainfall[i] = self.CumPrecip[i]-Abstraction
                    self.Runoff[i] = curveNumberRunoff(self.NetRainfall[i],self.MaxStorage,self.SoilStorage[0])
                    self.Infiltration[i]=self.NetRainfall[i]-self.Runoff[i]
             else:
                     self.NetRainfall[i] = 0
                     self.Runoff[i] = 0
-            self.SurfaceStorage[i+1]=min(self.Abstraction,self.CumPrecip[i])
+            self.SurfaceStorage[i+1]=min(self.SurfaceStorage[0]+Abstraction,self.CumPrecip[i])
         self.Runoff=differentiate(self.Runoff)
         self.NetRainfall=differentiate(self.NetRainfall)
         self.Infiltration=differentiate(self.Infiltration)
