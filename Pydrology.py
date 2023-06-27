@@ -507,7 +507,7 @@ class HOSH5P:
     def computeOutFlow(self):
         self.routingSystem.Inflow=self.Runoff
         self.routingSystem.computeOutFlow()
-        self.Q=self.routingSystem.Outflow
+        self.DirectRunoff=self.routingSystem.Outflow
         delta=self.Q.shape[0]-self.BaseFlow.shape[0]
         if(delta>0):
             initialStorage=self.SoilStorage[len(self.BaseFlow)-1]
@@ -517,6 +517,90 @@ class HOSH5P:
     def executeRun(self):
         self.computeRunoff()
         self.computeOutFlow()
+        self.Q=self.DirectRunoff+self.BaseFlow
+
+class HOSHX:
+    """
+    Modelo Operacional de Transformación de Precipitación en Escorrentía. Hidrología Operativa Síntesis de Hidrograma. Método NRCS con pérdidas continuas. Perfil de suelo con 1 reservorio de retención y otro de retención+detención (con efecto de base). Aporte directo de superficie impermeable. Prorateo de Excedente entre aporte directo y recarga.
+    """
+    type='PQ Model'
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0]):
+        self.maxSurfaceStorage=pars[0]
+        self.maxSoilStorage=pars[1]
+        self.K=pars[2]
+        self.phi=pars[3]
+        self.alfa=pars[4]
+        self.ks=pars[5]
+        self.n=pars[6]
+        self.kb=pars[7]
+        self.Precipitation=np.array(Boundaries[:,0],dtype='float')
+        self.ImpRunoff=np.array(Boundaries[:,0],dtype='float')
+        self.EVP=np.array(Boundaries[:,1],dtype='float')
+        self.EVR1=np.array([0]*len(self.Precipitation),dtype='float')
+        self.EVR2=np.array([0]*len(self.Precipitation),dtype='float')
+        self.SurfaceStorage=np.array([InitialConditions[0]]*(len(self.Precipitation)+1),dtype='float')
+        self.SoilStorage=np.array([InitialConditions[1]]*(len(self.Precipitation)+1),dtype='float')
+        self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
+        self.DelayedFlow=np.array([0]*len(self.Precipitation),dtype='float')
+        self.BaseFlow=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
+        self.DirectRunoff=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Q=np.array([0]*len(self.Precipitation),dtype='float')
+    def computeRunoff(self):
+        self.soilSystem=SCSReservoirsMod(pars=[self.maxSurfaceStorage,self.maxSoilStorage,self.K]) 
+        j=0
+        indexes=list()
+        for row in list(self.Precipitation):
+            self.ImpRunoff[j]=apportion(self.Precipitation[j],self.alfa)
+            if(self.Precipitation[j]!=0):
+                indexes.append(j)
+            else:
+                if(len(indexes)>0): #Activa Rutina de cómputo SCS
+                    print("ponding")
+                    self.soilSystem.Precipitation=apportion(self.Precipitation[min(indexes):max(indexes)+1],1-self.alfa)
+                    self.soilSystem.CumPrecip=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
+                    self.soilSystem.NetRainfall=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
+                    self.soilSystem.Infiltration=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
+                    self.soilSystem.Runoff=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
+                    self.soilSystem.BaseFlow=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
+                    self.soilSystem.SurfaceStorage=np.array([self.SurfaceStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
+                    self.soilSystem.SoilStorage=np.array([self.SoilStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
+                    self.soilSystem.computeAbstractionAndRunoff()
+                    self.SurfaceStorage[min(indexes):max(indexes)+2]=self.soilSystem.SurfaceStorage
+                    self.SoilStorage[min(indexes):max(indexes)+2]=self.soilSystem.SoilStorage
+                    self.NetRainfall[min(indexes):max(indexes)+1]=self.soilSystem.NetRainfall
+                    self.Infiltration[min(indexes):max(indexes)+1]=self.soilSystem.Infiltration
+                    self.DelayedFlow[min(indexes):max(indexes)+1]=self.soilSystem.BaseFlow
+                    self.Runoff[min(indexes):max(indexes)+1]=self.soilSystem.Runoff
+                    indexes=list()
+                if(len(indexes)==0): #Activa rutina de Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
+                    print("drying")
+                    self.EVR1[j]=min(self.SurfaceStorage[j]/self.maxSurfaceStorage*self.EVP[j],self.SurfaceStorage[j])
+                    self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
+                    self.NetRainfall[j]=max(0,self.Precipitation[j]-self.EVR1[j]+self.SurfaceStorage[j]-self.maxSurfaceStorage)
+                    self.SurfaceStorage[j+1]=waterBalance(self.SurfaceStorage[j],self.Precipitation[j],self.EVR1[j]+self.NetRainfall[j])
+                    self.Runoff[j]=max(0,self.NetRainfall[j]-self.EVR2[j]+self.SoilStorage[j-1]-self.maxSoilStorage)
+                    self.DelayedFlow[j]=(1-self.K)*(self.SoilStorage[j]+self.NetRainfall[j])
+                    self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j]+self.DelayedFlow[j])
+            j=j+1            
+    def computeOutFlow(self):
+        self.routingSystem=LinearChannel(pars=[self.ks,self.n],Boundaries=apportion(self.Runoff,self.phi))
+        self.primaryBFSystem=LinearReservoirCascade(pars=[self.kb,1],Boundaries=apportion(self.Runoff,1-self.phi))
+        self.routingSystem.computeOutFlow()
+        self.primaryBFSystem.computeOutFlow()
+        self.DirectRunoff=self.routingSystem.Outflow
+        self.BaseFlow=self.primaryBFSystem.Outflow
+        delta=self.Q.shape[0]-self.DelayedFlow.shape[0]
+        if(delta>0):
+            initialStorage=self.SoilStorage[len(self.DelayedFlow)-1]
+            for j in range(0,delta):
+                self.DelayedFlow=np.append(self.DelayedFlow,(1-self.K)*initialStorage)
+                initialStorage=initialStorage-self.DelayedFlow[len(self.DelayedFlow)-1]
+    def executeRun(self):
+        self.computeRunoff()
+        self.computeOutFlow()
+        self.Q=self.DirectRunoff[0:len(self.Runoff)]+self.BaseFlow[0:len(self.Runoff)]+self.DelayedFlow[0:len(self.Runoff)]
 
 
 if __name__ == "__main__":
