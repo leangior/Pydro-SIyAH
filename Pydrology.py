@@ -585,7 +585,7 @@ class HOSHX:
                     self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j]+self.DelayedFlow[j])
             j=j+1            
     def computeOutFlow(self):
-        self.routingSystem=LinearChannel(pars=[self.ks,self.n],Boundaries=apportion(self.Runoff,self.phi))
+        self.routingSystem=LinearChannel(pars=[self.ks,self.n],Boundaries=self.ImpRunoff+apportion(self.Runoff,self.phi))
         self.primaryBFSystem=LinearReservoirCascade(pars=[self.kb,1],Boundaries=apportion(self.Runoff,1-self.phi))
         self.routingSystem.computeOutFlow()
         self.primaryBFSystem.computeOutFlow()
