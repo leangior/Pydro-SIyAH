@@ -8,13 +8,23 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os, glob
 
-#0. Definición de funciones (métodos transversales)
+#genera gráfica de señales de entrada/salida para diagnóstico visual
 
-#Realiza Plot de Prueba entre Inflow y Outflow 
 def testPlot(Inflow,Outflow):
     plt.plot(Inflow,'r')
     plt.plot(Outflow,'b')
     plt.show()
+
+#desplaza subíndice de serie una unidad a la izquierda (ajuste para representación discreta)
+
+def shiftLeft(array1d,fill=0):
+    i=0
+    shift=np.array([0]*len(array1d),dtype='float')
+    for value in range(1,len(array1d)):
+        shift[i]=array1d[i+1]
+        i=i+1
+    shift[i]=fill
+    return(shift)
 
 #Importa CSV a estructura de datos de entrada PQ diario (t,PMA,EV0)
 
@@ -48,8 +58,34 @@ def integrate(list,dt):
         int=int+(list[i]+list[i-1])*dt/2
     return int
 
-#Computa Función Respuesta Unitaria Cascada de n reservorios Lineales con tiempo de residencia k, obtenida por integración numérica a resolución dt (método del trapecio)
-def gammaDistribution(n,k,dt=1,m=10,round='T'):
+#Computa Hidrograma Triangular
+
+def triangularDistribution(T,distribution='Symmetric',shift='T'):
+    if distribution == 'Symmetric':
+        tb=2*T
+        peakValue=1/T
+    if distribution == 'SCS':
+        tb=8/3*T
+        peakValue=3/4*1/T
+    i=0
+    u=np.array([0]*(int(tb)+1),dtype='float')
+    U=np.array([0]*(int(tb)+1),dtype='float')    
+    for j in range(0,int(tb)+1):
+        if(j<T):
+            if j==0:
+                m=peakValue/T
+            u[j]=m*j
+        else:
+            if i==0:
+                i=j
+                m=peakValue/(T-tb)
+            u[j]=peakValue+m*(j-i)
+    for j in range(0,int(tb)):
+         U[j]=integrate(u[j:j+2],dt=1)
+    return(U)
+
+#Computa Función Respuesta Unitaria Cascada de n reservorios Lineales con tiempo de residencia k, obtenida por integración numérica a resolución dt (método del trapecio). El parámetro shift se agregó para desplazar los subíndices una unidad a la izquierda, puesto que si no muestrea la integración a fin de intervalo de cómputo, pudiéndose introducir un artefacto numérico con efecto de retardo, aproximadamente en una unidad.
+def gammaDistribution(n,k,dt=1,m=10,round='T',shift='T'):
     T=int(m*n*k)
     u=np.array([0]*(int(T/dt)+1),dtype='float')
     U=np.array([0]*(int(T)+1),dtype='float')
@@ -63,9 +99,11 @@ def gammaDistribution(n,k,dt=1,m=10,round='T'):
         U[j]=integrate(u[min:max],dt)
     if round == 'T':
         U=U/sum(U)
+    if shift == 'T':
+        U=shiftLeft(U)
     return U
 
-#Computa Matriz de pulsos para Convolución con función distribución (Sistemas Lineales). Inflow es el array 1D de inflows a propagar por un sistema lineal con función de transferencia representada por el array 1D u
+#Computa Matriz de pulsos para Convolución con At 12:00 on day-of-month 1.”
 def getPulseMatrix(inflows,u):
     n=len(inflows)
     m=len(u)
@@ -127,16 +165,15 @@ class RetentionReservoir:
             self.Storage[i+1]=waterBalance(self.Storage[i],self.Inflow[i],self.EV[i]+self.Runoff[i])
 
 
-#1.B Reservorio Lineal. 
+#1.B Reservorio Lineal. ###REVISAR RUTINA TOMA LEN() OF UNSIZED OBJECT 
 class LinearReservoir:
     """
     Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage, con el cual computa Outflow. Condiciones de Borde (Boundaries): Inflow y EV.
     """
     type='Linear Reservoir'
-    def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Agg',dt=1):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[0],Proc='Agg',dt=1):
         self.K=pars[0]
-        self.Inflow=np.array(Boundaries[0],dtype='float') 
-        self.EV=np.array(Boundaries[1],dtype='float')
+        self.Inflow=np.array(Boundaries,dtype='float') 
         self.Storage=np.array([InitialConditions[0]]*(len(self.Inflow)+1),dtype='float')
         self.Outflow=(1/self.K)*self.Storage
         self.Proc=Proc
@@ -161,7 +198,36 @@ class LinearReservoir:
             if self.Proc == 'API':
                 self.Storage[i+1]=(1-1/self.K)*self.Storage[i]+self.Inflow[i]
                 self.Outflow[i+1]=(1/self.K)*self.Storage
-                
+
+class ProductionStoreGR4J:
+    """
+    Reservorio de Producción de Escorrentía modelo GR4J
+    """
+    type='GR4J Runoff Production Store'
+    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
+        self.MaxSoilStorage=pars[0]
+        self.Precipitation=np.array(Boundaries[:,0],dtype='float')
+        self.EVP=np.array(Boundaries[:,1],dtype='float')
+        self.SoilStorage=np.array([InitialConditions[1]]*(len(self.Precipitation)+1),dtype='float')
+        self.NetEVP=np.array([0]*len(self.Precipitation),dtype='float')
+        self.EVR=np.array([0]*len(self.Precipitation),dtype='float')
+        self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Recharge=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
+    def computeOutFlow(self):
+        for i in range(0,len(self.Precipitation)):
+            self.NetRainfall[i]=max(0,self.Precipitation[i]-self.EVP[i])
+            self.NetEVP[i]=max(0,self.EVP[i]-self.Precipitation[i])
+            relativeMoisture=self.SoilStorage[i]/self.MaxSoilStorage
+            ratio_netRainfall_maxStorage=self.NetRainfall[i]/self.MaxSoilStorage
+            ratio_netEVP_maxStorage=self.NetEVP[i]/self.MaxSoilStorage
+            self.Recharge[i]=(self.MaxSoilStorage*(1-(relativeMoisture)**2)*np.tanh(ratio_netRainfall_maxStorage))/(1+relativeMoisture*ratio_netRainfall_maxStorage)
+            self.EVR[i]=(self.SoilStorage[i]*(2-relativeMoisture)*np.tanh(ratio_netEVP_maxStorage))/(1+(1-relativeMoisture)*np.tanh(ratio_netEVP_maxStorage))
+            self.SoilStorage[i+1]=waterBalance(self.SoilStorage[i],self.Recharge[i],self.EVR[i])
+            self.Infiltration[i]=self.MaxSoilStorage*(1-((1+4/9*relativeMoisture)**4)**(-1/4))
+            self.SoilStorage[i+1]=waterBalance(self.SoilStorage[i+1],0,self.Infiltration[i])
+            self.Runoff[i]=self.Infiltration[i]+self.NetRainfall[i]-self.Recharge[i]
 
 class SCSReservoirs:
     """
@@ -249,8 +315,8 @@ class SCSReservoirsMod:
 #2.A Cascada de Reservorios Lineales (Discreta). Dos parámetros: Tiempo de Resdiencia (K) y Número de Reservorios (N)
 class LinearReservoirCascade:
     """
-    Cascada de Reservorios Lineales (Discreta). Vector pars de dos parámetros: Tiempo de Residencia (K) y Número de Reservorios (N). Vector de Condiciones Iniciales (InitialConditions): Si es un escalar (debe ingresarse como elemento de lista) genera una matriz de 2xN con valor constante igual al escala, también puede ingresarse una matriz de 2XN que represente el caudal inicial en cada reservorio de la cascada. Condiciones de Borde (Boundaries): Inflow 
-    """
+    Cascada de Reservorios Lineales (Discreta). Vector pars de dos parámetros: Tiempo de Residencia (K) y Número de Reservorios (N). Vector de Condiciones Iniciales (InitialConditions): Si es un escalar (debe ingresarse como elemento de lista) genera una matriz de 2xN con valor constante igual al escalar, también puede ingresarse una matriz de 2XN que represente el caudal inicial en cada reservorio de la cascada. Condiciones de Borde (Boundaries): vector Inflow. 
+    """
     type='Discrete Cascade of N Linear Reservoirs with Time K'
     def __init__(self,pars,Boundaries=[0],InitialConditions=[0],create='yes',Proc='Discretely Coincident',dt=1):
         self.K=pars[0]
@@ -338,7 +404,7 @@ class MuskingumChannel:
 #2.C Tránsito Lineal con funciones de transferencia. Por defecto, se asume una distrinución gamma con parámetros n (número de reservorios) y k (tiempo de residencia). Asimismo, se considera n=2, de modo tal que tp=k (el tiempo al pico es igual al tiempo de residencia) 
 class LinearChannel:
     """
-    Método de tránsito hidrológico implementado sobre la base de teoría de sistemas lineales. Así, considera al tránsito de energía, materia o información como un proceso lineal desde un nodos superior hacia un nodo inferior. Específicamente, sea I=[I1,I2,...,IN] el vector de pulsos generados por el borde superior y U=[U1,U2,..,UM] una función de distribución que representa el prorateo de un pulso unitario durante el tránsito desde un nodo superior (borde) hacia un nodo inferior (salida), el sistema opera aplicando las propiedades de proporcionalidad y aditividad, de manera tal que es posible propagar cada pulso a partir de U y luego mediante la suma de estos prorateos obtener el aporte de este tránsito sobre el nodo inferior (convolución).
+    Método de tránsito hidrológico implementado sobre la base de teoría de sistemas lineales. Así, considera al tránsito de energía, materia o información como un proceso lineal desde un nodo superior hacia un nodo inferior. Específicamente, sea I=[I1,I2,...,IN] el vector de pulsos generados por el borde superior y U=[U1,U2,..,UM] una función de distribución que representa el prorateo de un pulso unitario durante el tránsito desde un nodo superior (borde) hacia un nodo inferior (salida), el sistema opera aplicando las propiedades de proporcionalidad y aditividad, de manera tal que es posible propagar cada pulso a partir de U y luego mediante la suma de estos prorateos obtener el aporte de este tránsito sobre el nodo inferior (convolución).
     """
     type='Single Linear Channel'
     def __init__(self,pars,Boundaries=[0],Proc='Nash',dt=1):
@@ -350,7 +416,7 @@ class LinearChannel:
             self.k=self.pars[0]
             self.n=self.pars[1]
             self.u=gammaDistribution(self.n,self.k,self.dt)
-       if self.Proc != 'Nash':
+       if self.Proc == 'UH':
             self.u=self.pars
        self.Outflow=np.array([[0]]*(len(self.Inflow)+len(self.u)-1))
     def computeOutFlow(self):
@@ -387,16 +453,19 @@ class LinearNet:
 
 #3. Modelos PQ/QQ
 
-class HOSH4P:
+class HOSH4P1L:
     """
     Modelo Operacional de Transformación de Precipitación en Escorrentía de 4 parámetros (estimables). Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (sin efecto de base).
     """
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0]):
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
         self.soilSystem=SCSReservoirs(pars=[self.maxSurfaceStorage,self.maxSoilStorage])
-        self.routingSystem=LinearChannel(pars=[pars[2],pars[3]])
+        if Proc == 'Nash':
+            self.routingSystem=LinearChannel(pars=[pars[2],pars[3]])
+        if Proc == 'UH':
+            self.routingSystem=LinearChannel(pars=pars[2],Proc='UH')
         self.Precipitation=np.array(Boundaries[:,0],dtype='float')
         self.EVP=np.array(Boundaries[:,1],dtype='float')
         self.EVR1=np.array([0]*len(self.Precipitation),dtype='float')
@@ -430,11 +499,11 @@ class HOSH4P:
                     self.Infiltration[min(indexes):max(indexes)+1]=self.soilSystem.Infiltration
                     self.Runoff[min(indexes):max(indexes)+1]=self.soilSystem.Runoff
                     indexes=list()
-                if(len(indexes)==0): #Activa rutina de Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
+                if(len(indexes)==0): #Activa rutina Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
                     print("drying")
                     self.EVR1[j]=min(self.SurfaceStorage[j]/self.maxSurfaceStorage*self.EVP[j],self.SurfaceStorage[j])
-                    self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
                     self.NetRainfall[j]=max(0,self.Precipitation[j]-self.EVR1[j]+self.SurfaceStorage[j]-self.maxSurfaceStorage)
+                    self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
                     self.SurfaceStorage[j+1]=waterBalance(self.SurfaceStorage[j],self.Precipitation[j],self.EVR1[j]+self.NetRainfall[j])
                     self.Runoff[j]=max(0,self.NetRainfall[j]-self.EVR2[j]+self.SoilStorage[j-1]-self.maxSoilStorage)
                     self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j])
@@ -447,17 +516,23 @@ class HOSH4P:
         self.computeRunoff()
         self.computeOutFlow()
 
-class HOSH5P:
+class HOSH4P2L:
     """
-    Modelo Operacional de Transformación de Precipitación en Escorrentía. Hidrología Operativa Síntesis de Hidrograma. Método NRCS con pérdidas continuas. Perfil de suelo con 1 reservorio de retención y otro de retención+detención (con efecto de base).
+    Modelo Operacional de Transformación de Precipitación en Escorrentía de 4/6 parámetros (estimables), con 2 capas de suelo. Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (zona superior) y un reservorio linear (zona inferior). Rutea utilizando una función respuesta de pulso unitario arbitraria o mediante na cascada de Nash (se debe especificar tiempo de residencia y número de reservorios)
     """
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0]):
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
+        self.RoutingProc=Proc
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
-        self.K=pars[2]
-        self.soilSystem=SCSReservoirsMod(pars=[self.maxSurfaceStorage,self.maxSoilStorage,self.K])
-        self.routingSystem=LinearChannel(pars=[pars[3],pars[4]])
+        self.soilSystem=SCSReservoirs(pars=[self.maxSurfaceStorage,self.maxSoilStorage])
+        self.phi=pars[2]
+        self.kb=pars[3]
+        if self.RoutingProc == 'Nash':
+            self.tr=pars[4]
+            self.n=pars[5]
+        if self.RoutingProc == 'UH':
+            self.u=pars[4]
         self.Precipitation=np.array(Boundaries[:,0],dtype='float')
         self.EVP=np.array(Boundaries[:,1],dtype='float')
         self.EVR1=np.array([0]*len(self.Precipitation),dtype='float')
@@ -466,7 +541,6 @@ class HOSH5P:
         self.SoilStorage=np.array([InitialConditions[1]]*(len(self.Precipitation)+1),dtype='float')
         self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float')
         self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
-        self.BaseFlow=np.array([0]*len(self.Precipitation),dtype='float')
         self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
         self.Q=np.array([0]*len(self.Precipitation),dtype='float')
     def computeRunoff(self): 
@@ -483,7 +557,6 @@ class HOSH5P:
                     self.soilSystem.NetRainfall=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
                     self.soilSystem.Infiltration=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
                     self.soilSystem.Runoff=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
-                    self.soilSystem.BaseFlow=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
                     self.soilSystem.SurfaceStorage=np.array([self.SurfaceStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
                     self.soilSystem.SoilStorage=np.array([self.SoilStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
                     self.soilSystem.computeAbstractionAndRunoff()
@@ -491,122 +564,33 @@ class HOSH5P:
                     self.SoilStorage[min(indexes):max(indexes)+2]=self.soilSystem.SoilStorage
                     self.NetRainfall[min(indexes):max(indexes)+1]=self.soilSystem.NetRainfall
                     self.Infiltration[min(indexes):max(indexes)+1]=self.soilSystem.Infiltration
-                    self.BaseFlow[min(indexes):max(indexes)+1]=self.soilSystem.BaseFlow
                     self.Runoff[min(indexes):max(indexes)+1]=self.soilSystem.Runoff
                     indexes=list()
-                if(len(indexes)==0): #Activa rutina de Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
+                if(len(indexes)==0): #Activa rutina Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
                     print("drying")
                     self.EVR1[j]=min(self.SurfaceStorage[j]/self.maxSurfaceStorage*self.EVP[j],self.SurfaceStorage[j])
-                    self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
                     self.NetRainfall[j]=max(0,self.Precipitation[j]-self.EVR1[j]+self.SurfaceStorage[j]-self.maxSurfaceStorage)
+                    self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
                     self.SurfaceStorage[j+1]=waterBalance(self.SurfaceStorage[j],self.Precipitation[j],self.EVR1[j]+self.NetRainfall[j])
                     self.Runoff[j]=max(0,self.NetRainfall[j]-self.EVR2[j]+self.SoilStorage[j-1]-self.maxSoilStorage)
-                    self.BaseFlow[j]=(1-self.K)*(self.SoilStorage[j]+self.NetRainfall[j])
-                    self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j]+self.BaseFlow[j])
+                    self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j])
             j=j+1            
     def computeOutFlow(self):
-        self.routingSystem.Inflow=self.Runoff
+        if self.RoutingProc == 'Nash':
+            self.routingSystem=LinearChannel(pars=[self.tr,self.n],Boundaries=apportion(self.Runoff,self.phi))
+        if self.RoutingProc != 'Nash':
+            self.routingSystem=LinearChannel(pars=self.u,Boundaries=apportion(self.Runoff,self.phi),Proc='UH')
         self.routingSystem.computeOutFlow()
-        self.DirectRunoff=self.routingSystem.Outflow
-        delta=self.Q.shape[0]-self.BaseFlow.shape[0]
-        if(delta>0):
-            initialStorage=self.SoilStorage[len(self.BaseFlow)-1]
-            for j in range(0,delta):
-                self.BaseFlow=np.append(self.BaseFlow,(1-self.K)*initialStorage)
-                initialStorage=initialStorage-self.BaseFlow[len(self.BaseFlow)-1]
+        self.groundwaterSystem=LinearReservoirCascade(pars=[self.kb,1],Boundaries=apportion(self.Runoff,1-self.phi))
+        self.groundwaterSystem.computeOutFlow()
+        self.Q=self.routingSystem.Outflow[0:len(self.Runoff)]+self.groundwaterSystem.Outflow[0:len(self.Runoff)]
     def executeRun(self):
         self.computeRunoff()
         self.computeOutFlow()
-        self.Q=self.DirectRunoff+self.BaseFlow
-
-class HOSHX:
-    """
-    Modelo Operacional de Transformación de Precipitación en Escorrentía. Hidrología Operativa Síntesis de Hidrograma. Método NRCS con pérdidas continuas. Perfil de suelo con 1 reservorio de retención y otro de retención+detención (con efecto de base). Aporte directo de superficie impermeable. Prorateo de Excedente entre aporte directo y recarga.
-    """
-    type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0]):
-        self.maxSurfaceStorage=pars[0]
-        self.maxSoilStorage=pars[1]
-        self.K=pars[2]
-        self.phi=pars[3]
-        self.alfa=pars[4]
-        self.ks=pars[5]
-        self.n=pars[6]
-        self.kb=pars[7]
-        self.Precipitation=np.array(Boundaries[:,0],dtype='float')
-        self.ImpRunoff=np.array(Boundaries[:,0],dtype='float')
-        self.EVP=np.array(Boundaries[:,1],dtype='float')
-        self.EVR1=np.array([0]*len(self.Precipitation),dtype='float')
-        self.EVR2=np.array([0]*len(self.Precipitation),dtype='float')
-        self.SurfaceStorage=np.array([InitialConditions[0]]*(len(self.Precipitation)+1),dtype='float')
-        self.SoilStorage=np.array([InitialConditions[1]]*(len(self.Precipitation)+1),dtype='float')
-        self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float')
-        self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
-        self.DelayedFlow=np.array([0]*len(self.Precipitation),dtype='float')
-        self.BaseFlow=np.array([0]*len(self.Precipitation),dtype='float')
-        self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
-        self.DirectRunoff=np.array([0]*len(self.Precipitation),dtype='float')
-        self.Q=np.array([0]*len(self.Precipitation),dtype='float')
-    def computeRunoff(self):
-        self.soilSystem=SCSReservoirsMod(pars=[self.maxSurfaceStorage,self.maxSoilStorage,self.K]) 
-        j=0
-        indexes=list()
-        for row in list(self.Precipitation):
-            self.ImpRunoff[j]=apportion(self.Precipitation[j],self.alfa)
-            if(self.Precipitation[j]!=0):
-                indexes.append(j)
-            else:
-                if(len(indexes)>0): #Activa Rutina de cómputo SCS
-                    print("ponding")
-                    self.soilSystem.Precipitation=apportion(self.Precipitation[min(indexes):max(indexes)+1],1-self.alfa)
-                    self.soilSystem.CumPrecip=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
-                    self.soilSystem.NetRainfall=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
-                    self.soilSystem.Infiltration=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
-                    self.soilSystem.Runoff=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
-                    self.soilSystem.BaseFlow=np.array([0]*(len(self.soilSystem.Precipitation)),dtype='float')
-                    self.soilSystem.SurfaceStorage=np.array([self.SurfaceStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
-                    self.soilSystem.SoilStorage=np.array([self.SoilStorage[min(indexes)]]*(len(self.soilSystem.Precipitation)+1),dtype='float')
-                    self.soilSystem.computeAbstractionAndRunoff()
-                    self.SurfaceStorage[min(indexes):max(indexes)+2]=self.soilSystem.SurfaceStorage
-                    self.SoilStorage[min(indexes):max(indexes)+2]=self.soilSystem.SoilStorage
-                    self.NetRainfall[min(indexes):max(indexes)+1]=self.soilSystem.NetRainfall
-                    self.Infiltration[min(indexes):max(indexes)+1]=self.soilSystem.Infiltration
-                    self.DelayedFlow[min(indexes):max(indexes)+1]=self.soilSystem.BaseFlow
-                    self.Runoff[min(indexes):max(indexes)+1]=self.soilSystem.Runoff
-                    indexes=list()
-                if(len(indexes)==0): #Activa rutina de Cómputo EVR y realiza balance en reservorio de abstracción superficial y reservorio de retención de agua en el suelo
-                    print("drying")
-                    self.EVR1[j]=min(self.SurfaceStorage[j]/self.maxSurfaceStorage*self.EVP[j],self.SurfaceStorage[j])
-                    self.EVR2[j]=computeEVR(self.NetRainfall[j],self.EVP[j]-self.EVR1[j],self.SoilStorage[j],self.maxSoilStorage)
-                    self.NetRainfall[j]=max(0,self.Precipitation[j]-self.EVR1[j]+self.SurfaceStorage[j]-self.maxSurfaceStorage)
-                    self.SurfaceStorage[j+1]=waterBalance(self.SurfaceStorage[j],self.Precipitation[j],self.EVR1[j]+self.NetRainfall[j])
-                    self.Runoff[j]=max(0,self.NetRainfall[j]-self.EVR2[j]+self.SoilStorage[j-1]-self.maxSoilStorage)
-                    self.DelayedFlow[j]=(1-self.K)*(self.SoilStorage[j]+self.NetRainfall[j])
-                    self.SoilStorage[j+1]=waterBalance(self.SoilStorage[j],self.NetRainfall[j],self.EVR2[j]+self.Runoff[j]+self.DelayedFlow[j])
-            j=j+1            
-    def computeOutFlow(self):
-        self.routingSystem=LinearChannel(pars=[self.ks,self.n],Boundaries=self.ImpRunoff+apportion(self.Runoff,self.phi))
-        self.primaryBFSystem=LinearReservoirCascade(pars=[self.kb,1],Boundaries=apportion(self.Runoff,1-self.phi))
-        self.routingSystem.computeOutFlow()
-        self.primaryBFSystem.computeOutFlow()
-        self.DirectRunoff=self.routingSystem.Outflow
-        self.BaseFlow=self.primaryBFSystem.Outflow
-        delta=self.Q.shape[0]-self.DelayedFlow.shape[0]
-        if(delta>0):
-            initialStorage=self.SoilStorage[len(self.DelayedFlow)-1]
-            for j in range(0,delta):
-                self.DelayedFlow=np.append(self.DelayedFlow,(1-self.K)*initialStorage)
-                initialStorage=initialStorage-self.DelayedFlow[len(self.DelayedFlow)-1]
-    def executeRun(self):
-        self.computeRunoff()
-        self.computeOutFlow()
-        self.Q=self.DirectRunoff[0:len(self.Runoff)]+self.BaseFlow[0:len(self.Runoff)]+self.DelayedFlow[0:len(self.Runoff)]
 
 
 if __name__ == "__main__":
     import sys
 
 
-
-´
     
