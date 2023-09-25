@@ -522,7 +522,7 @@ class HOSH4P1L:
         self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
         self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
         self.Q=np.array([0]*len(self.Precipitation),dtype='float')
-    def computeRunoff(self): 
+    def computeRunoff(self): r/pydrodelta/tree/main
         j=0
         indexes=list()
         for row in list(self.Precipitation):
@@ -639,7 +639,7 @@ class GR4J:
     Modelo Operacional de Transformación de Precipitación en Escorrentía de Ingeniería Rural de 4 parámetros (CEMAGREF). A diferencia de la versión original, la convolución se realiza mediante producto de matrices. Parámetros: Máximo almacenamiento en reservorio de producción, tiempo al pico (hidrograma unitario),máximo alamcenamiento en reservorio de propagación, coeficiente de intercambio.
     """
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[[0],[0]],Proc='Nash'):
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[[0],[0]],Proc='CEMAGREF SH'):
         self.prodStoreMaxStorage=pars[0]
         self.T=pars[1]
         self.u1=grXDistribution(self.T,distribution='SH1')
