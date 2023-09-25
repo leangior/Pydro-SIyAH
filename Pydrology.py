@@ -161,6 +161,20 @@ def apportion(Inflow,phi=0.1):
 def curveNumberRunoff(NetRainfall,MaxStorage,Storage):
     return NetRainfall**2/(MaxStorage-Storage+NetRainfall)
 
+#Realiza correción de sesgo por simple updating (método propuesto por el Servicio Ruso)
+def SimonovKhristoforov(sim,obs): 
+    uObs=np.mean(obs)
+    uSim=np.mean(sim)
+    df=np.array([[0]*2]*len(sim),dtype='float')
+    df[:,0]=sim
+    df[:,1]=obs
+    df=pd.DataFrame(data=df)
+    r=df.corr()[0][1]
+    sSim=np.std(df[0])
+    sObs=np.std(df[1])
+    anomaly=sim-uSim
+    return(uObs+r*sObs/sSim*anomaly)
+
 #1. Proceso P-Q: Componentes de Función Producción de Escorrentía 
 
 #1.A Reservorio de Retención 
@@ -522,7 +536,7 @@ class HOSH4P1L:
         self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
         self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
         self.Q=np.array([0]*len(self.Precipitation),dtype='float')
-    def computeRunoff(self): r/pydrodelta/tree/main
+    def computeRunoff(self): 
         j=0
         indexes=list()
         for row in list(self.Precipitation):
