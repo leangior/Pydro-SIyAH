@@ -58,9 +58,8 @@ def integrate(list,dt):
         int=int+(list[i]+list[i-1])*dt/2
     return int
 
-#Computa Hidrograma Triangular
-
-def triangularDistribution(T,distribution='Symmetric',shift='T'):
+#Computa Hidrogramas Triangulares (método Simétrico o SCS)
+def triangularDistribution(T,distribution='Symmetric'):
     if distribution == 'Symmetric':
         tb=2*T
         peakValue=1/T
@@ -68,9 +67,9 @@ def triangularDistribution(T,distribution='Symmetric',shift='T'):
         tb=8/3*T
         peakValue=3/4*1/T
     i=0
-    u=np.array([0]*(int(tb)+1),dtype='float')
-    U=np.array([0]*(int(tb)+1),dtype='float')    
-    for j in range(0,int(tb)+1):
+    u=np.array([0]*(int(round(tb,0)+1)),dtype='float')
+    U=np.array([0]*(int(round(tb,0)+1)),dtype='float')    
+    for j in range(0,int(round(tb,0)+1)):
         if(j<T):
             if j==0:
                 m=peakValue/T
@@ -102,6 +101,28 @@ def gammaDistribution(n,k,dt=1,m=10,round='T',shift='T'):
     if shift == 'T':
         U=shiftLeft(U)
     return U
+
+#Computa HUs propuestos en modelos GRX (GR4J, GRP)
+def grXDistribution(T,distribution='SH1',shift='T'):    
+    if distribution == 'SH1':
+        tb=T
+        k=1
+    if distribution == 'SH2':
+        tb=2*T
+        k=1/2
+    U=np.array([0]*(int(round(tb,0)+1)),dtype='float')
+    for j in range(0,int(round(tb,0)+1)):
+        if(j<T):
+            U[j]=k*(j/T)**(5/2)
+        if((j>T) and j<tb):
+             U[j]=1-k*(2-j/T)**(5/2)        
+        else:
+           if(j>tb):
+                U[j]=1
+    u=differentiate(U,'no')
+    if shift == 'T':
+        u=shiftLeft(u)
+    return(u)
 
 #Computa Matriz de pulsos para Convolución con At 12:00 on day-of-month 1.”
 def getPulseMatrix(inflows,u):
@@ -171,9 +192,10 @@ class LinearReservoir:
     Reservorio Lineal. Vector pars de un sólo parámetro: Tiempo de residencia (K). Vector de Condiciones Iniciales (InitialConditions): Storage, con el cual computa Outflow. Condiciones de Borde (Boundaries): Inflow y EV.
     """
     type='Linear Reservoir'
-    def __init__(self,pars,InitialConditions=[0],Boundaries=[0],Proc='Agg',dt=1):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Agg',dt=1):
         self.K=pars[0]
-        self.Inflow=np.array(Boundaries,dtype='float') 
+        self.Inflow=np.array(Boundaries[0],dtype='float') 
+        self.EV=np.array(Boundaries[1],dtype='float')
         self.Storage=np.array([InitialConditions[0]]*(len(self.Inflow)+1),dtype='float')
         self.Outflow=(1/self.K)*self.Storage
         self.Proc=Proc
@@ -198,17 +220,17 @@ class LinearReservoir:
             if self.Proc == 'API':
                 self.Storage[i+1]=(1-1/self.K)*self.Storage[i]+self.Inflow[i]
                 self.Outflow[i+1]=(1/self.K)*self.Storage
-
+                
 class ProductionStoreGR4J:
     """
     Reservorio de Producción de Escorrentía modelo GR4J
     """
     type='GR4J Runoff Production Store'
-    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[[0],[0]],Proc='Time Discrete Agg'):
         self.MaxSoilStorage=pars[0]
         self.Precipitation=np.array(Boundaries[:,0],dtype='float')
         self.EVP=np.array(Boundaries[:,1],dtype='float')
-        self.SoilStorage=np.array([InitialConditions[1]]*(len(self.Precipitation)+1),dtype='float')
+        self.SoilStorage=np.array([InitialConditions[0]]*(len(self.Precipitation)+1),dtype='float')
         self.NetEVP=np.array([0]*len(self.Precipitation),dtype='float')
         self.EVR=np.array([0]*len(self.Precipitation),dtype='float')
         self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float')
@@ -228,6 +250,30 @@ class ProductionStoreGR4J:
             self.Infiltration[i]=self.MaxSoilStorage*(1-((1+4/9*relativeMoisture)**4)**(-1/4))
             self.SoilStorage[i+1]=waterBalance(self.SoilStorage[i+1],0,self.Infiltration[i])
             self.Runoff[i]=self.Infiltration[i]+self.NetRainfall[i]-self.Recharge[i]
+
+class RoutingStoreGR4J:
+    """
+    Reservorio de Propagación de Escorrentía modelo GR4J
+    """
+    type='GR4J Runoff Routing Store'
+    def __init__(self,pars,InitialConditions=[0],Boundaries=[0],Proc='Time Discrete Agg'):
+        self.MaxStorage=pars[0]
+        if not pars[1]:
+            self.waterExchange=0
+        else:
+            self.waterExchange=pars[1]
+        self.Inflow=np.array(Boundaries,dtype='float')
+        self.Leakages=np.array([0]*len(self.Inflow),dtype='float')
+        self.Runoff=np.array([0]*len(self.Inflow),dtype='float')
+        self.Storage=np.array([InitialConditions[0]]*(len(self.Inflow)+1),dtype='float')
+    def computeOutFlow(self):
+         for i in range(0,len(self.Inflow)):
+            relativeMoisture=self.Storage[i]/self.MaxStorage
+            self.Leakages[i]=self.waterExchange*relativeMoisture**(7/2)
+            self.Storage[i+1]=max(0,self.Storage[i]+self.Inflow[i])
+            relativeMoisture=self.Storage[i+1]/self.MaxStorage
+            self.Runoff[i]=self.Storage[i+1]*(1-(1+relativeMoisture**4)**(-1/4))
+            self.Storage[i+1]=waterBalance(self.Storage[i+1],0,self.Runoff[i])
 
 class SCSReservoirs:
     """
@@ -269,7 +315,7 @@ class SCSReservoirs:
 
 class SCSReservoirsMod:
     """
-    Sistema de 2 reservorios de retención+detención (una capa de abstracción superficial/suelo y otra capa de retención/detención en resto perfil de suelo), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service y añadiendo pérdida continua por flujo de base (primario). Vector pars de 3 parámetros: Máxima Abtracción por retención (Abstraction) y Máximo Almacenamiento por Retención+Detención en Perfil de Suelo (MaxStorage) y coefiente de pérdida K. Se añade pérdida continua Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
+    Sistema de 2 reservorios de retención+detención (una capa de abstracción superficial/suelo y otra capa de retención/detención en resto perfil de suelo), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service y añadiendo pérdida continua por flujo de base (primario). Vector pars de 3 parámetros: Máxima Abtracción por retención (Abstraction) y Máximo Almacenamiento por Retención+Detención en Perfil de Suelo (MaxStorage) y coefiente de pérdida K. Se añade pérdida continua. Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
     """
     type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
     def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
@@ -458,7 +504,7 @@ class HOSH4P1L:
     Modelo Operacional de Transformación de Precipitación en Escorrentía de 4 parámetros (estimables). Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (sin efecto de base).
     """
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[[0],[0]],Proc='Nash'):
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
         self.soilSystem=SCSReservoirs(pars=[self.maxSurfaceStorage,self.maxSoilStorage])
@@ -521,7 +567,7 @@ class HOSH4P2L:
     Modelo Operacional de Transformación de Precipitación en Escorrentía de 4/6 parámetros (estimables), con 2 capas de suelo. Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (zona superior) y un reservorio linear (zona inferior). Rutea utilizando una función respuesta de pulso unitario arbitraria o mediante na cascada de Nash (se debe especificar tiempo de residencia y número de reservorios)
     """
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[[0],[0]],Proc='Nash'):
         self.RoutingProc=Proc
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
@@ -588,6 +634,41 @@ class HOSH4P2L:
         self.computeRunoff()
         self.computeOutFlow()
 
+class GR4J:
+    """
+    Modelo Operacional de Transformación de Precipitación en Escorrentía de Ingeniería Rural de 4 parámetros (CEMAGREF). A diferencia de la versión original, la convolución se realiza mediante producto de matrices. Parámetros: Máximo almacenamiento en reservorio de producción, tiempo al pico (hidrograma unitario),máximo alamcenamiento en reservorio de propagación, coeficiente de intercambio.
+    """
+    type='PQ Model'
+    def __init__(self,pars,Boundaries=[0],InitialConditions=[[0],[0]],Proc='Nash'):
+        self.prodStoreMaxStorage=pars[0]
+        self.T=pars[1]
+        self.u1=grXDistribution(self.T,distribution='SH1')
+        self.u2=grXDistribution(self.T,distribution='SH2')
+        self.routStoreMaxStorage=pars[2]
+        if not pars[1]:
+            self.waterExchange=0
+        else:
+            self.waterExchange=pars[3]
+        self.Precipitation=np.array(Boundaries[:,0],dtype='float')
+        self.EVP=np.array(Boundaries[:,1],dtype='float')
+        self.Runoff=np.array([0]*len(self.Precipitation),dtype='float')
+        self.Q=np.array([0]*len(self.Precipitation),dtype='float')
+        self.prodStore=ProductionStoreGR4J(pars=[self.prodStoreMaxStorage],Boundaries=makeBoundaries(self.Precipitation,self.EVP))
+    def computeRunoff(self):
+        self.prodStore.computeOutFlow()
+        self.Runoff=self.prodStore.Runoff
+    def computeOutFlow(self):
+        self.channel1=LinearChannel(pars=self.u1,Boundaries=apportion(0.9,self.Runoff),Proc='UH')
+        self.channel2=LinearChannel(pars=self.u2,Boundaries=apportion(0.1,self.Runoff),Proc='UH')
+        self.channel1.computeOutFlow()
+        self.routStore=RoutingStoreGR4J(pars=[self.routStoreMaxStorage,self.waterExchange],Boundaries=self.channel1.Outflow)
+        self.routStore.computeOutFlow()
+        self.channel2.computeOutFlow()
+        j=min(len(self.routStore.Runoff),len(self.channel2.Outflow))
+        self.Q=self.routStore.Runoff[0:j]+self.channel2.Outflow[0:j]
+    def executeRun(self):
+        self.computeRunoff()
+        self.computeOutFlow()
 
 if __name__ == "__main__":
     import sys
