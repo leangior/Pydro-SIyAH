@@ -659,7 +659,7 @@ class GR4J:
         self.u1=grXDistribution(self.T,distribution='SH1')
         self.u2=grXDistribution(self.T,distribution='SH2')
         self.routStoreMaxStorage=pars[2]
-        if not pars[1]:
+        if not pars[3]:
             self.waterExchange=0
         else:
             self.waterExchange=pars[3]
