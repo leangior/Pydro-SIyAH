@@ -58,8 +58,8 @@ def integrate(list,dt):
         int=int+(list[i]+list[i-1])*dt/2
     return int
 
-#Computa Hidrogramas Triangulares (método Simétrico o SCS)
-def triangularDistribution(T,distribution='Symmetric',dt=0.01):
+#Computa Hidrogramas Triangulares (Función Respuesta Unitaria, método Triangular Simétrico o Triangular SCS)
+def triangularDistribution(T,distribution='Symmetric',dt=0.01,shift='T',approx='T'):
     if distribution == 'Symmetric':
         tb=2*T
         peakValue=1/T
@@ -86,11 +86,17 @@ def triangularDistribution(T,distribution='Symmetric',dt=0.01):
     for j in range(1,ndimU):
         min=int((j-1)/dt)
         max=int(j/dt)+1
-        U[j]=integrate(u[min:max],dt)         
-    return(U)
+        U[j]=integrate(u[min:max],dt)
+    if approx=='T':
+        U=U/sum(U)
+    if shift == 'T':
+        U=shiftLeft(U)         
+        return(U[0:(len(U)-1)])
+    else:
+        return(U)
 
 #Computa Función Respuesta Unitaria Cascada de n reservorios Lineales con tiempo de residencia k, obtenida por integración numérica a resolución dt (método del trapecio). El parámetro shift se agregó para desplazar los subíndices una unidad a la izquierda, puesto que si no muestrea la integración a fin de intervalo de cómputo, pudiéndose introducir un artefacto numérico con efecto de retardo, aproximadamente en una unidad.
-def gammaDistribution(n,k,dt=1,m=10,round='T',shift='T'):
+def gammaDistribution(n,k,dt=1,m=10,approx='T',shift='T'):
     T=int(m*n*k)
     u=np.array([0]*(int(T/dt)+1),dtype='float')
     U=np.array([0]*(int(T)+1),dtype='float')
@@ -102,13 +108,13 @@ def gammaDistribution(n,k,dt=1,m=10,round='T',shift='T'):
         min=int((j-1)/dt)
         max=int(j/dt)+1
         U[j]=integrate(u[min:max],dt)
-    if round == 'T':
+    if approx == 'T':
         U=U/sum(U)
     if shift == 'T':
         U=shiftLeft(U)
     return U
 
-#Computa HUs propuestos en modelos GRX (GR4J, GRP)
+#Computa HUs propuestos en modelos GRX (GR4J, GRP) #Resta approx numérica (en esta versión puede haber algún bug de volumen)
 def grXDistribution(T,distribution='SH1',shift='T'):    
     if distribution == 'SH1':
         tb=T
