@@ -114,7 +114,7 @@ def gammaDistribution(n,k,dt=1,m=10,approx='T',shift='T'):
         U=shiftLeft(U)
     return U
 
-#Computa HUs propuestos en modelos GRX (GR4J, GRP) #Resta approx numérica (en esta versión puede haber algún bug de volumen)
+#Computa HUs propuestos en modelos GRX (GR4J, GRP) #Resta evaluar approx numérica (en esta versión puede haber algún bug de volumen, en algún intervalo de subíndices, si bien a diferencia del resto aquí se obtiene diferenciando y no integrando)
 def grXDistribution(T,distribution='SH1',shift='T'):    
     if distribution == 'SH1':
         tb=T
