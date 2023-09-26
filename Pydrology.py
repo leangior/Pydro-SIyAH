@@ -59,28 +59,34 @@ def integrate(list,dt):
     return int
 
 #Computa Hidrogramas Triangulares (método Simétrico o SCS)
-def triangularDistribution(T,distribution='Symmetric'):
+def triangularDistribution(T,distribution='Symmetric',dt=0.01):
     if distribution == 'Symmetric':
         tb=2*T
         peakValue=1/T
     if distribution == 'SCS':
         tb=8/3*T
         peakValue=3/4*1/T
+    ndimu=int(round(tb/dt,0)+1)
+    ndimU=int(round(tb,0)+1)
+    u=np.array([0]*(ndimu),dtype='float')
+    U=np.array([0]*(ndimU),dtype='float')
     i=0
-    u=np.array([0]*(int(round(tb,0)+1)),dtype='float')
-    U=np.array([0]*(int(round(tb,0)+1)),dtype='float')    
-    for j in range(0,int(round(tb,0)+1)):
-        if(j<T):
+    j=0    
+    for t in np.array(list(range(0,ndimu))):
+        if t*dt<T:
             if j==0:
                 m=peakValue/T
-            u[j]=m*j
+            u[j]=m*t*dt
         else:
             if i==0:
-                i=j
+                i=1
                 m=peakValue/(T-tb)
-            u[j]=peakValue+m*(j-i)
-    for j in range(0,int(tb)):
-         U[j]=integrate(u[j:j+2],dt=1)
+            u[j]=peakValue+m*(t*dt-T)
+        j=j+1 
+    for j in range(1,ndimU):
+        min=int((j-1)/dt)
+        max=int(j/dt)+1
+        U[j]=integrate(u[min:max],dt)         
     return(U)
 
 #Computa Función Respuesta Unitaria Cascada de n reservorios Lineales con tiempo de residencia k, obtenida por integración numérica a resolución dt (método del trapecio). El parámetro shift se agregó para desplazar los subíndices una unidad a la izquierda, puesto que si no muestrea la integración a fin de intervalo de cómputo, pudiéndose introducir un artefacto numérico con efecto de retardo, aproximadamente en una unidad.
