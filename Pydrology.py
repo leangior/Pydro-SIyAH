@@ -114,28 +114,36 @@ def gammaDistribution(n,k,dt=1,m=10,approx='T',shift='T'):
         U=shiftLeft(U)
     return U
 
-#Computa HUs propuestos en modelos GRX (GR4J, GRP) #Resta evaluar approx numérica (en esta versión puede haber algún bug de volumen, en algún intervalo de subíndices, si bien a diferencia del resto aquí se obtiene diferenciando y no integrando)
-def grXDistribution(T,distribution='SH1',shift='T'):    
+#Computa HUs propuestos en modelos GRX (GR4J, GRP) 
+def grXDistribution(T,distribution='SH1',dt=0.5,approx='T',Agg='T'):    
     if distribution == 'SH1':
         tb=T
         k=1
     if distribution == 'SH2':
         tb=2*T
         k=1/2
-    U=np.array([0]*(int(round(tb,0)+1)),dtype='float')
-    for j in range(0,int(round(tb,0)+1)):
-        if(j<T):
-            U[j]=k*(j/T)**(5/2)
-        if((j>T) and j<tb):
-             U[j]=1-k*(2-j/T)**(5/2)        
+    ndimu=int(round(tb/dt,0)+2)
+    ndimU=int(round(tb,0)+1)
+    u=np.array([0]*(ndimu),dtype='float')
+    U=np.array([0]*(ndimU),dtype='float')
+    for t in np.array(list(range(0,ndimu))):
+        if t*dt<T:
+            u[t]=k*(t*dt/T)**(5/2)
+        if t*dt>T and t*dt<tb:
+             u[t]=1-k*(2-t*dt/T)**(5/2)        
         else:
-           if(j>tb):
-                U[j]=1
-    u=differentiate(U,'no')
-    if shift == 'T':
-        u=shiftLeft(u)
-    return(u)
-
+           if t*dt>tb:
+                u[t]=1
+    u=differentiate(u,'no')
+    for j in range(0,ndimU):
+        min=int(j/dt)
+        max=int((j+1)/dt)
+        U[j]=sum(u[min:max])
+    if Agg == 'T':
+        return(U)
+    else:
+        return(u)
+        
 #Computa Matriz de pulsos para Convolución con At 12:00 on day-of-month 1.”
 def getPulseMatrix(inflows,u):
     n=len(inflows)
