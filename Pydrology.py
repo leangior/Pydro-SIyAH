@@ -58,7 +58,7 @@ def integrate(list,dt):
         int=int+(list[i]+list[i-1])*dt/2
     return int
 
-#Computa Hidrogramas Triangulares (Función Respuesta Unitaria, método Triangular Simétrico, Triangular SCS o especificando Tp y Tb - 'pbT' -)
+#Computa Hidrogramas Triangulares (Función Respuesta Unitaria, método Triangular Simétrico, Triangular SCS o especificando una lista con Tp y Tb - 'pbT' -)
 def triangularDistribution(pars,distribution='Symmetric',dt=0.01,shift='T',approx='T'):
     if isinstance(pars,(list)):
         T=pars[0]
