@@ -966,8 +966,12 @@ class HOSH4P1L:
     """Recarga de reservorio de producción (serie temporal)"""
     CumPrecip: np.ndarray
     "Precipitación acumulada durante el evento (serie temporal)"
-    NetRainfall: np.array
+    NetRainfall: np.ndarray
     """Precipitación neta (serie temporal)"""
+    EVR1 : np.ndarray
+    """Evapotranspiración real reservorio de abstracción"""
+    EVR2 : np.ndarray
+    """Evapotranspiración real reservorio de producción"""
     Q : float
     """Flujo encauzado (serie temporal)"""
     type='PQ Model'
@@ -978,10 +982,9 @@ class HOSH4P1L:
             Boundaries : Union[List[float],np.ndarray]
                 Lista o array2d compuesto por vectores (columna) de precipitación y evapotranspiración potencial (condiciones de borde) 
             InitialConditions : Union[List[Tuple[float,float]],List[float]]
-                Lista o array2d con valores de almacenamiento inicial en reservorio de abstracción y en reservorio de producciòn
+                Lista o array1d con valores de almacenamiento inicial en reservorio de abstracción y en reservorio de producción
             Proc: str
                 Procedimiento para transferencia: 'Nash' (cascada de Nash, debe proveerse k y n) o 'UH' (Hidrogramas Unitarios, array con j-vectores fila con valores de ordenadas)
-
         """
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
@@ -1053,8 +1056,44 @@ class HOSH4P2L:
     """
     Modelo Operacional de Transformación de Precipitación en Escorrentía de 4/6 parámetros (estimables), con 2 capas de suelo. Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (zona superior) y un reservorio linear (zona inferior). Rutea utilizando una función respuesta de pulso unitario arbitraria o mediante na cascada de Nash (se debe especificar tiempo de residencia y número de reservorios)
     """
+    maxSurfaceStorage : float
+    """Almacenamiento Máximo Superficial (reservorio de retención)"""
+    maxSoilStorage : float
+    """Almacenamiento máximo en el Suelo (reservorio de producción)"""
+    Proc : str
+    """Procedimiento de propagación ('Nash' o 'UH')"""
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    SurfaceStorage: np.ndarray
+    """Almacenamiento en reservorio de retención (serie temporal)"""
+    SoilStorage : np.ndarray
+    """Almacenamiento en resservorio de producción (sserie temporal)"""
+    Runoff : np.ndarray
+    """Transferencia horizontal: escorrentía total (serie temporal)"""
+    Infiltration : np.ndarray
+    """Recarga de reservorio de producción (serie temporal)"""
+    CumPrecip: np.ndarray
+    "Precipitación acumulada durante el evento (serie temporal)"
+    NetRainfall: np.array
+    """Precipitación neta (serie temporal)"""
+    EVR1 : np.ndarray
+    """Evapotranspiración real reservorio de abstracción"""
+    EVR2 : np.ndarray
+    """Evapotranspiración real reservorio de producción"""
+    Q : float
+    """Flujo encauzado (serie temporal)"""
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
+    def __init__(self,pars: Union[List[Tuple[float,float]],List[float],np.ndarray],Boundaries : Union[List[float],np.ndarray] =[[0],[0]],InitialConditions : Union[List[Tuple[float,float]],List[float]] =[0,0],Proc : str ='Nash'):
+        """
+            pars : List[Tuple[float,float],float,np.ndarray]
+                Lista con los valores de maxSurFaceStorage (reservorio de abstracción), maxSoilStorage (reservorio de producción), coeficiente de prorateo (flujo directo/flujo demorado, phi), coeficiente de recesión (autovalor, kb) y parámetros tiempo de residencia (k) y n reservorios (caso Proc='Nash') o con lista,tupla o array con ordenadas de Hidrograma Unitario (caso Proc='UH') 
+            Boundaries : Union[List[float],np.ndarray]
+                Lista o array2d compuesto por vectores (columna) de precipitación y evapotranspiración potencial (condiciones de borde) 
+            InitialConditions : Union[List[Tuple[float,float]],List[float]]
+                Lista o array1d con valores de almacenamiento inicial en reservorio de abstracción y en reservorio de producción
+            Proc: str
+                Procedimiento para transferencia: 'Nash' (cascada de Nash, debe proveerse k y n) o 'UH' (Hidrogramas Unitarios, array con j-vectores fila con valores de ordenadas)
+        """
         self.RoutingProc=Proc
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
@@ -1128,8 +1167,24 @@ class GR4J:
     """
     Modelo Operacional de Transformación de Precipitación en Escorrentía de Ingeniería Rural de 4 parámetros (CEMAGREF). A diferencia de la versión original, la convolución se realiza mediante producto de matrices. Parámetros: Máximo almacenamiento en reservorio de producción, tiempo al pico (hidrograma unitario),máximo almacenamiento en reservorio de propagación, coeficiente de intercambio.
     """
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    EVP : np.ndarray
+    """Evapotranspiración (serie temporal)"""
+    Runoff : np.ndarray
+    """Escorentía reservorio de producción (serie temporal)"""
+    Q: np.ndarray
+    """Flujo encauzado (serie temporal)"""
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='CEMAGREF SH'):
+    def __init__(self,pars : Union[List[float],tuple],Boundaries : Union[List[float],np.ndarray] =[[0],[0]],InitialConditions : Union[List[Tuple[float,float]],List[float]]=[0,0],Proc='CEMAGREF SH'):
+        """
+            pars : Union[List[float],tuple]
+                Lista o tupla con los valores de Almacenamiento Máximo en Reservorio de Producción, Tiempo al pico , Almacenamiento Máximo en Reservorio de Tránsito y coeficiente de intercambio o fugas 
+            Boundaries : Union[List[float],np.ndarray]
+                Lista o array2d compuesto por vectores (columna) de precipitación y evapotranspiración potencial (condiciones de borde) 
+            InitialConditions : Union[List[Tuple[float,float]],List[float]]
+                Lista o array1d con valores de almacenamiento inicial en reservorio de producción y en reservorio de tránsito
+        """
         self.RoutingProc=Proc
         self.InitialConditions=InitialConditions
         self.prodStoreMaxStorage=pars[0]
