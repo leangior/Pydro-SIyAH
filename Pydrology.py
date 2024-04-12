@@ -10,24 +10,26 @@ import matplotlib.pyplot as plt
 import os, glob
 import logging
 
-def testPlot(Inflow: Union[np.array,List[float]],Outflow : Union[np.array,List[float]]):
+
+#Funciones/Procedimientos (Procesos Hidrológicos, procesamiento de datos)
+def testPlot(Inflow: Union[np.ndarray,List[float]],Outflow : Union[np.ndarray,List[float]]):
     """Genera una gráfica de prueba comparando 2 señales
 
      Args:
-        Inflow : Union[np.array,List[float]] 
+        Inflow : Union[np.ndarray,List[float]] 
             Hidrograma, lista de números (float)
-        Outflow : Union[np.array,List[float]]
+        Outflow : Union[np.ndarray,List[float]]
             Hidrograma, lista de números (float)
     """
     plt.plot(Inflow,'r')
     plt.plot(Outflow,'b')
     plt.show()
 
-def shiftLeft(array1d : Union[np.array,List[float]],fill : float =0) -> np.array:
+def shiftLeft(array1d : Union[np.ndarray,List[float]],fill : float =0) -> np.ndarray:
     """Desplaza una serie hacia la izquierda (valor de índice en lista)
 
      Args:
-        array1d : Union[np.array,List[float]] 
+        array1d : Union[np.ndarray,List[float]] 
             Serie numérica
         fill : float 
             valor de relleno para datos nulos
@@ -60,13 +62,13 @@ def getDrivers(file : str,tCol: str ='t') -> pd.DataFrame:
     data.index=data[tCol]
     return(data)
 
-def makeBoundaries(p : Union[List[float],np.array] = [0],evp : Union[List[float],np.array] =[0]) -> np.array:
+def makeBoundaries(p : Union[List[float],np.ndarray] = [0],evp : Union[List[float],np.ndarray] =[0]) -> np.ndarray:
     """Dummy para generación de series de borde en modelos PQ operacionales (para cada polígono)
 
      Args: 
-        p : [List[float],np.array]  
+        p : [List[float],np.ndarray]  
             serie de datos de precipitación acumulada
-        evp : [List[float],np.array]  
+        evp : [List[float],np.ndarray]  
             serie de datos de evapotranspiración potencial acumulada
         
         Returns:
@@ -114,7 +116,7 @@ def integrate(lista_valores : List[float], dt : float) -> float:
         integral=integral+(lista_valores[i]+lista_valores[i-1])*dt/2
     return(integral)
 
-def triangularDistribution(pars : Union[List[float],float],distribution : str ='Symmetric',dt : float =0.01,shift : bool =True,approx: bool=True) -> np.array:
+def triangularDistribution(pars : Union[List[float],float],distribution : str ='Symmetric',dt : float =0.01,shift : bool =True,approx: bool=True) -> np.ndarray:
     """Computa Hidrogramas Unitarios Triangulares (función respuesta a pulso unitario, función de transferencia) 
     
     Args:
@@ -172,7 +174,7 @@ def triangularDistribution(pars : Union[List[float],float],distribution : str ='
     else:
         return(U)
 
-def gammaDistribution(n : float,k : float,dt : float =1,m : float =10,approx : bool = True,shift :bool =True) -> np.array:
+def gammaDistribution(n : float,k : float,dt : float =1,m : float =10,approx : bool = True,shift :bool =True) -> np.ndarray:
     """Computa Hidrogramas Unitarios (función respuesta a pulso unitario, función de transferencia) sobre la base de una función respuesta a impulso unitaria suponiendo n reservorios lineales en cascada con tiempo de residencia k (función de transferencia tipo gamma)
     
     Args:
@@ -207,7 +209,7 @@ def gammaDistribution(n : float,k : float,dt : float =1,m : float =10,approx : b
         U=shiftLeft(U)
     return(U)
 
-def grXDistribution(T : float,distribution : str ='SH1') -> np.array:    
+def grXDistribution(T : float,distribution : str ='SH1') -> np.ndarray:    
     """Computa Hidrogramas Unitarios (función respuesta a pulso unitario, función de transferencia) propuestos por SEMAGREF (GR4J, GP)
     
     Args:
@@ -241,12 +243,12 @@ def grXDistribution(T : float,distribution : str ='SH1') -> np.array:
     u=differentiate(U,True)
     return(shiftLeft(u))
 
-def getPulseMatrix(inflows : Union[float,List[float],np.array],u : np.array) -> np.array:
+def getPulseMatrix(inflows : Union[float,List[float],np.ndarray],u : np.ndarray) -> np.ndarray:
     """Computa matriz de convolución a partir de una lista o array1d de 'Inflows' (hidrograma de entrada) y sobre la base de una función de transferenciaa o HU 'u'    
     Args:
-        Inflows : Union[float,List[float],np.array]
+        Inflows : Union[float,List[float],np.ndarray]
             lista o array1d con hidrograma de entrada    
-        u : np.array  
+        u : np.ndarray  
             función de transferencia (HU)     
 
     Returns:
@@ -303,10 +305,10 @@ def computeEVR(P : float,EV0 : float ,Storage : float,MaxStorage : float) -> flo
     sigma=max(EV0-P,0)
     return(EV0+Storage*(1-math.exp(-sigma/MaxStorage))-sigma)
 
-def apportion(Inflow : Union[float,List[float],np.array],phi : float=0.1) -> Union[float,List[float],np.array]:
+def apportion(Inflow : Union[float,List[float],np.ndarray],phi : float=0.1) -> Union[float,List[float],np.ndarray]:
     """Proratea un hidrograma   
     Args:
-        Inflow: Union[float,List[float],np.array]
+        Inflow: Union[float,List[float],np.ndarray]
             Hidorgrama de entrada
     Returns:
         Devuelve el hidrograma prorateado 
@@ -333,15 +335,15 @@ def curveNumberRunoff(NetRainfall : float,MaxStorage : float,Storage : float) ->
     return NetRainfall**2/(MaxStorage-Storage+NetRainfall)
 
 
-def SimonovKhristoforov(sim : np.array,obs : np.array) -> np.array: 
+def SimonovKhristoforov(sim : np.array,obs : np.ndarray) -> np.ndarray: 
     """   
     Realiza correción de sesgo por simple updating (método propuesto por el Servicio Ruso)
     Args:
 
-        sim: np.array
+        sim: np.ndarray
             Serie simulada o sintética
         
-        obs: np.array
+        obs: np.ndarray
             Serie observada
 
         Returns:
@@ -369,15 +371,15 @@ class RetentionReservoir:
     type='Retention Reservoir'
     MaxStorage : float
     """Almacenamiento Máximo"""
-    Inflow: np.array
+    Inflow: np.ndarray
     """Serie de datos con hidrograma/hietograma de entrada (condición de borde)"""
-    EVP: np.array
+    EVP: np.ndarray
     """Serie de datos de evapotranspiración potencial (condición de borde)"""
-    Storage: np.array
+    Storage: np.ndarray
     """Almacenamiento a inicios de paso de cálculo (proceso computado)"""
-    Runoff: np.array
+    Runoff: np.ndarray
     """Escorrentía (proceso computado)"""
-    EV: np.array
+    EV: np.ndarray
     """Evapotranspiración real (proceso computado)"""
     Proc: str
     "Procedimiento: Abstraction o CN_h0_continuous"
@@ -421,25 +423,25 @@ class LinearReservoir:
     type='Linear Reservoir'
     K : float
     """ Constante de Recesión"""
-    Inflow : np.array 
+    Inflow : np.ndarray 
     """ Caudal Alfuente"""
-    EV: np.array 
+    EV: np.ndarray 
     """"Evpotranspiraciòn"""
-    Storage : np.array 
+    Storage : np.ndarray 
     """Almacenamiento"""
-    Outflow: np.array 
+    Outflow: np.ndarray 
     """Caudal efluente"""
-    def __init__(self,pars : list,InitialConditions : list =[0],Boundaries : list =[[0],[0]],Proc : str ='Agg',dt : float=1):
+    def __init__(self,pars : list,InitialConditions : list =[0],Boundaries : List[float] =[[0],[0]],Proc : str ='Agg',dt : float=1):
         """
-        pars : list
+        pars : List[float]
             lista con el valor del coeficiente de recesión, expresado en dt unidades
-        InitialConditions 
+        InitialConditions : list 
             lista con el valor de la condición inicial de almacenamiento
-        Boundaries
-            lista de longitud donde cada elemento es una lista que contiene los vectores de las condiciones de border (Caudal Afluente y Evapotranspiración Potencial)
-        Proc
+        Boundaries : List[float]
+            lista de longitud 2 donde cada elemento es una lista que contiene los vectores de las condiciones de borde (Caudal Afluente y Evapotranspiración Potencial)
+        Proc : str
             Procedimiento de cómputo. Admite 'Agg' (Valor Agregado), 'API' o 'Instant' (Valor Instantáneo)
-        dt
+        dt : float
             Longitud del paso de cómputo
         """
         self.K=pars[0]
@@ -478,8 +480,36 @@ class ProductionStoreGR4J:
     """
     Reservorio de Producción de Escorrentía modelo GR4J
     """
+    MaxSoilStorage : float
+    """Almacenamiento Máximo en Perfil de Suelo"""
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    EVP : np.ndarray
+    """Evapotranspiración potencial (serie temporal)"""
+    SoilStorage : np.ndarray
+    """Almacenamiento en Perfil de Suelo (serie temporal)"""
+    NetEVP : np.ndarray
+    """Evapotranspiración Potencial Neta (serie temporal)"""
+    EVR : np.ndarray
+    """Evapotranspiración Real (serie temporal)"""
+    NetRainfall : np.ndarray
+    """Precipitación Neta (serie temporal)"""
+    Recharge : np.ndarray
+    """Transferencia vertical: Pérdidas por recarga de flujo demorado (serie temporal)"""
+    Infiltration : np.ndarray
+    """Ingresos Netos al reservorio por Infiltración (serie temporal)"""
+    Runoff : np.ndarray
+    """Transferencia horizontal: Pérdidas por flujo directo (serie temporal)"""
     type='GR4J Runoff Production Store'
-    def __init__(self,pars,InitialConditions=0,Boundaries=[[0],[0]],Proc='Time Discrete Agg'):
+    def __init__(self,pars : list,InitialConditions : float =0,Boundaries : List[float] =[[0],[0]]):
+        """
+            pars : list
+                lista con el valor de almacenamiento máximo
+            InitialConditions : float
+                lista con el valor de la condición inicial de almacenamiento
+            Boundaries : List[float]
+                lista de longitud 2 donde cada elemento es una lista que contiene los vectores de las condiciones de borde (Precipitación y Evapotranspiración Potencial)
+        """
         self.MaxSoilStorage=pars[0]
         self.Precipitation=np.array(Boundaries[:,0],dtype='float')
         self.EVP=np.array(Boundaries[:,1],dtype='float')
@@ -510,7 +540,27 @@ class RoutingStoreGR4J:
     Reservorio de Propagación de Escorrentía modelo GR4J
     """
     type='GR4J Runoff Routing Store'
-    def __init__(self,pars,InitialConditions=0,Boundaries=[0],Proc='Time Discrete Agg'):
+    MaxStorage : float
+    """Almacenamiento Máximo"""
+    waterExchange : float
+    """Coeficiente de trasvase"""
+    Inflow : np.ndarray
+    """Recarga del reservorio (serie temporal)"""
+    Leakages : np.ndarray
+    """trasvase (serie temporal)"""
+    Runoff: np.ndarray
+    """Transferencia horizontal : pérdidas por flujo demorado"""
+    Storage : np.ndarray
+    """Almacenamiento"""
+    def __init__(self,pars : Union[List[float],List[Tuple[float,float]]],InitialConditions : float =0,Boundaries : List[float] =[0]):
+        """
+            pars : Union[List[float],List[Tuple[float,float]]]
+                lista con los valores de almacenamiento máximo (obligatorio) y del coeficiente de trasvase (opcional/puede omitirse, en cuyo caso se asigna el valor 0)
+            InitialConditions 
+                lista con el valor de la condición inicial de almacenamiento 
+            Boundaries
+                lista con el vector de la condición de borde (serie temporal de recarga de flujo demorado)
+        """
         self.MaxStorage=pars[0]
         if not pars[1]:
             self.waterExchange=0
@@ -531,10 +581,36 @@ class RoutingStoreGR4J:
 
 class SCSReservoirs:
     """
-    Sistema de 2 reservorios de retención (intercepción/abstracción superficial y retención en perfil de suelo - i.e. capacidad de campo-), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service. Vector pars de dos parámetros: Máximo Almacenamiento Superficial (Abstraction) y Máximo Almacenamiento por Retención en Perfil de Suelo (MaxStorage). Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
+    Sistema de 2 reservorios de retención (intercepción/abstracción superficial y retención en perfil de suelo - i.e. capacidad de campo-), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service. Lista pars de dos parámetros: Máximo Almacenamiento Superficial (Abstraction) y Máximo Almacenamiento por Retención en Perfil de Suelo (MaxStorage). Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
     """
+    MaxSurfaceStorage : float
+    """Almacenamiento Máximo en reservorio de retención"""
+    MaxStorage : float
+    """Almacenamiento Máximo en reservorio de producción"""
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    SurfaceStorage: np.ndarray
+    """Almacenamiento en reservorio de retención (serie temporal)"""
+    SoilStorage : np.ndarray
+    """Almacenamiento en resservorio de producción (sserie temporal)"""
+    Runoff : np.ndarray
+    """Transferencia horizontal: escorrentía total (serie temporal)"""
+    Infiltration : np.ndarray
+    """Recarga de reservorio de producción (serie temporal)"""
+    CumPrecip: np.ndarray
+    "Precipitación acumulada durante el evento (serie temporal)"
+    NetRainfall: np.ndarray
+    """Precipitación neta (serie temporal)"""
     type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
-    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
+    def __init__(self,pars : Union[List[float],List[Tuple[float,float]]],InitialConditions : Union[List[float],List[Tuple[float,float]]] =[0,0],Boundaries : List[float] =[0]):
+        """
+            pars : Union[List[float],List[Tuple[float,float]]]
+                lista con los valores de almacenamiento máximo (reservorio de retención y reservorio de producción) y con el valor del coeficiente de recesión (flujo demorado) 
+            InitialConditions : Union[List[float],List[Tuple[float,float]]]
+                lista de longitud 2 con el valor de la condición inicial de almacenamiento en cada reservorio
+            Boundaries : List[float]
+                lista con el vector de la condición de borde (serie temporal de precipitación)
+        """
         self.MaxSurfaceStorage=pars[0]
         self.MaxStorage=pars[1]
         self.Precipitation=np.array(Boundaries,dtype='float')
@@ -544,8 +620,6 @@ class SCSReservoirs:
         self.Infiltration=np.array([0]*len(self.Precipitation),dtype='float')
         self.CumPrecip=np.array([0]*len(self.Precipitation),dtype='float')
         self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float') 
-        self.Proc=Proc
-        self.dt=1
     def computeAbstractionAndRunoff(self):
         Abstraction=self.MaxSurfaceStorage-self.SurfaceStorage[0]
         for i in range(0,len(self.Precipitation)):
@@ -569,10 +643,40 @@ class SCSReservoirs:
 
 class SCSReservoirsMod:
     """
-    Sistema de 2 reservorios de retención+detención (una capa de abstracción superficial/suelo y otra capa de retención/detención en resto perfil de suelo), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service y añadiendo pérdida continua por flujo de base (primario). Vector pars de 3 parámetros: Máxima Abtracción por retención (Abstraction) y Máximo Almacenamiento por Retención+Detención en Perfil de Suelo (MaxStorage) y coefiente de pérdida K. Se añade pérdida continua. Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
+    Sistema de 2 reservorios de retención+detención (una capa de abstracción superficial/suelo y otra capa de retención/detención en resto perfil de suelo), con función de cómputo de escorrentía siguiendo el método propuesto por el Soil Conservation Service y añadiendo pérdida continua por flujo de base (primario). Lista pars de 3 parámetros: Máxima Abtracción por retención (Abstraction) y Máximo Almacenamiento por Retención+Detención en Perfil de Suelo (MaxStorage) y coefiente de pérdida K. Se añade pérdida continua. Condiciones iniciales: Almacenamiento Superficial y Almacenamiento en Perfil de Suelo (lista de valores). Condiciones de Borde: Hietograma (lista de valores).
     """
+    MaxSurfaceStorage : float
+    """Almacenamiento Máximo en reservorio de retención"""
+    MaxStorage : float
+    """Almacenamiento Máximo en reservorio de producción"""
+    K : float
+    """Coeficiente de recesión (autovalor dominante del sistema reservorio de produccción)"""
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    SurfaceStorage: np.ndarray
+    """Almacenamiento en reservorio de retención (serie temporal)"""
+    SoilStorage : np.ndarray
+    """Almacenamiento en resservorio de producción (sserie temporal)"""
+    Runoff : np.ndarray
+    """Transferencia horizontal: flujo directo (serie temporal)"""
+    Infiltration : np.ndarray
+    """Recarga de reservorio de producción (serie temporal)"""
+    CumPrecip: np.ndarray
+    "Precipitación acumulada durante el evento (serie temporal)"
+    NetRainfall: np.ndarray
+    """Precipitación neta (serie temporal)"""
+    BaseFlow: np.ndarray
+    """Transferencia vertical: recarga de flujo demorado (serie temporal)"""
     type='Soil Conservation Service Model for Runoff Computation (Curve Number Method / Discrete Approach)'
-    def __init__(self,pars,InitialConditions=[0,0],Boundaries=[0],Proc='Time Discrete Agg'):
+    def __init__(self,pars : Union[List[float],List[Tuple[float,float]]],InitialConditions : Union[List[float],List[Tuple[float,float]]] =[0,0],Boundaries : List[float] =[0]):
+        """
+            pars : Union[List[float],List[Tuple[float,float]]]
+                lista con los valores de almacenamiento máximo (reservorio de retención y reservorio de producción) y con el valor del coeficiente de recesión (flujo demorado) 
+            InitialConditions : Union[List[float],List[Tuple[float,float]]]
+                lista de longitud 2 con el valor de la condición inicial de almacenamiento en cada reservorio
+            Boundaries : List[float]
+                lista con el vector de la condición de borde (serie temporal de precipitación)
+        """
         self.MaxSurfaceStorage=pars[0]
         self.MaxStorage=pars[1]
         self.K=pars[2]
@@ -584,8 +688,6 @@ class SCSReservoirsMod:
         self.CumPrecip=np.array([0]*len(self.Precipitation),dtype='float')
         self.NetRainfall=np.array([0]*len(self.Precipitation),dtype='float')
         self.BaseFlow=np.array([0]*len(self.Precipitation),dtype='float') 
-        self.Proc=Proc
-        self.dt=1
     def computeAbstractionAndRunoff(self):
         Abstraction=self.MaxSurfaceStorage-self.SurfaceStorage[0]
         for i in range(0,len(self.Precipitation)):
@@ -615,17 +717,31 @@ class SCSReservoirsMod:
 #2.A Cascada de Reservorios Lineales (Discreta). Dos parámetros: Tiempo de Resdiencia (K) y Número de Reservorios (N)
 class LinearReservoirCascade:
     """
-    Cascada de Reservorios Lineales (Discreta). Vector pars de dos parámetros: Tiempo de Residencia (K) y Número de Reservorios (N). Vector de Condiciones Iniciales (InitialConditions): Si es un escalar (debe ingresarse como elemento de lista) genera una matriz de 2xN con valor constante igual al escalar, también puede ingresarse una matriz de 2XN que represente el caudal inicial en cada reservorio de la cascada. Condiciones de Borde (Boundaries): vector Inflow. 
+    Cascada de Reservorios Lineales (Discreta). Lista pars de dos parámetros: Tiempo de Residencia (K) y Número de Reservorios (N). Vector de Condiciones Iniciales (InitialConditions): Si es un escalar (debe ingresarse como elemento de lista) genera una matriz de 2xN con valor constante igual al escalar, también puede ingresarse una matriz de 2XN que represente el caudal inicial en cada reservorio de la cascada. Condiciones de Borde (Boundaries): vector Inflow. 
     """
+    K : float
+    """Tiempo de residencia en reservorio"""
+    N : float
+    """Número de reservorios en cascada"""
+    dt : float
+    """Longitud del paso de cálculo"""
     type='Discrete Cascade of N Linear Reservoirs with Time K'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0],create='yes',Proc='Discretely Coincident',dt=1):
+    def __init__(self,pars : Union[List[float],List[Tuple[float,float]]],Boundaries : List[float] =[0],InitialConditions : List[float] =[0],dt=1):
+        """
+            pars : Union[List[float],List[Tuple[float,float]]]
+                lista con los valores del tiempo de residencia y de la cantidad de reservorios lineales en cascada 
+            InitialConditions : List [float]
+                lista con el valor de la condición inicial de almacenamiento en cada reservorio (puede brindarse un valor solamente, común a todos los reservorios, por defecto si se omite este es igual a 0)
+            Boundaries : List[float]
+                lista con el vector de la condición de borde (serie temporal de caudal afluente)
+        """
         self.K=pars[0]
         if not pars[1]:
             self.N=2
         else:
             self.N=pars[1]
         self.Inflow=np.array(Boundaries)   
-        if  create == 'yes':
+        if len(InitialConditions)==1:
             self.Cascade=np.array([[InitialConditions[0]]*self.N]*2,dtype='float')
         else:
             self.Cascade=np.array(InitialConditions,dtype='float')
@@ -652,11 +768,36 @@ class LinearReservoirCascade:
 # EN DESARROLLO (MUSKINGUM y CUNGE) --> VER RESTRICCIONES NUMÉRICAS y SI CONSIDERAR CURVAS HQ y BH COMO PARAMETROS DEL METODO. POR AHORA FINALIZADO MUSKINGUM CLÁSICO. CUNGE DEBE APOYARSE SOBRE EL MISMO, MODIFICANDO PARS K y X
 class MuskingumChannel:
     """
-    Método de tránsito hidrológico de la Oficina del río Muskingum. Vector pars de dos parámetros: Tiempo de Tránsito (K) y Factor de forma (X) [Proc='Muskingum'] o . Condiciones Iniciales (InitialConditions): matriz de condiciones iniciales o valor escalar constante. Condiciones de borde: Hidrograma en nodo superior de tramo. 
-    """
-    #A fin de mantener condiciones de estabilidad numérica en la propagación (conservar volumen), sobre la base de la restricción 2KX<=dt<=2K(1-X) (Chin,2000) y como dt viene fijo por la condición de borde (e.g. por defecto 'una unidad') y además se pretende respetar el valor de K, se propone incrementar la resolución espacial dividiendo el tramo en N subtramos de igual longitud, con tiempo de residencia mínimo T=K/N, para el caso dt<2KX (frecuencia de muestreo demasiado alta). Luego, aplicando el criterio de chin se sabe que el valor crítico de dt debe satisfacer dt=uT, específicamente con u=2X y T = K/N--> N=2KX/dt. Al mismo tiempo si dt>2K(1-X) (frecuencia de muestreo demasiado baja), el paso de cálculo se subdivide en M subpasos de longitud dT=2K(1-X) de forma tal que dT/dt=dv y M=dt/dv. Self.tau especifica el subpaso de cálculo (siendo self.M la cantidad de subintervalos utilizados) y self.N la cantidad de subtramos. 
+    Método de tránsito hidrológico de la Oficina del río Muskingum. Lista pars de dos parámetros: Tiempo de Tránsito (K) y Factor de forma (X). Condiciones Iniciales (InitialConditions): lista con array de condiciones iniciales o valor escalar constante. Condiciones de borde: lista con hidrograma en nodo superior de tramo. A fin de mantener condiciones de estabilidad numérica en la propagación (conservar volumen), sobre la base de la restricción 2KX<=dt<=2K(1-X) (Chin,2000) y como dt viene fijo por la condición de borde (e.g. por defecto 'una unidad') y además se pretende respetar el valor de K, se propone incrementar la resolución espacial dividiendo el tramo en N' subtramos de igual longitud, con tiempo de residencia mínimo T'=K/N', para el caso dt<2KX (frecuencia de muestreo demasiado alta). Así para obtener el valor N', se aplica el criterio de Chin estableciendo que el valor crítico debe satisfacer dt=uT', específicamente con u=2X y T' = K/N'--> N'=2KX/dt. Al mismo tiempo si dt>2K(1-X) (frecuencia de muestreo demasiado baja), el paso de cálculo se subdivide en M subpasos de longitud dT=2K(1-X) de forma tal que dT/dt=dv y M=dt/dv. El atributo self.tau resultante especifica el subpaso de cálculo (siendo self.M la cantidad de subintervalos utilizados) y self.N la cantidad de subtramos. 
+    """ 
+    K : float
+    """Tiempo de tránsito, parámetro del modelo"""
+    X : float
+    """Factor de forma, parámetro del modelo"""
+    dt : float
+    """Longitud del paso de cálculo"""
+    Inflow: np.ndarray
+    """"Hidrogama de ingresos al tramo (serie temporal)"""
+    Outflow: np.ndarray 
+    """Hidrograma de descragas del tramo (serie temporal)"""
+    N : float
+    """Cantidad de subtramos en tramo"""
+    M : float
+    """Cantidad de subpasos de cálculo en paso"""
+    tau : float
+    """Longitud de subpaso de cómputo"""
     type='Muskingum Channel'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0],Proc='Muskingum Routing Method',dt=1):
+    def __init__(self,pars : List[float],Boundaries : List[float] =[0],InitialConditions : List[float] =[0],dt=1):
+        """
+            pars : List[float]
+                lista con los valores del tiempo de tránsito (K) y del factor de forma (X) 
+            InitialConditions : List [float]
+                lista con el valor de la condición inicial de almacenamiento en tramo 
+            Boundaries : List[float]
+                lista con el hidrograma de entrada, de resolución dt
+            dt : float
+                resolución del hidrograma de entrada, por defecto se establece en la unidad
+        """
         self.K=pars[0]
         self.X=pars[1]
         self.dt=dt
@@ -706,18 +847,43 @@ class LinearChannel:
     """
     Método de tránsito hidrológico implementado sobre la base de teoría de sistemas lineales. Así, considera al tránsito de energía, materia o información como un proceso lineal desde un nodo superior hacia un nodo inferior. Específicamente, sea I=[I1,I2,...,IN] el vector de pulsos generados por el borde superior y U=[U1,U2,..,UM] una función de distribución que representa el prorateo de un pulso unitario durante el tránsito desde un nodo superior (borde) hacia un nodo inferior (salida), el sistema opera aplicando las propiedades de proporcionalidad y aditividad, de manera tal que es posible propagar cada pulso a partir de U y luego mediante la suma de estos prorateos obtener el aporte de este tránsito sobre el nodo inferior (convolución).
     """
+    Inflow : np.ndarray
+    """Hidrograma de entrada (serie temporal)"""
+    dt : float
+    """Longitud de paso de cálculo"""
+    Proc: str
+    """Tipo de Procedimiento. Admite 'Nash' (cascada de reservorios lineales, debe proveerse lista de pars k y n) y 'UH' (Hidrograma Unitario, debe proveerse lista con array conteniendo ordenadas de UH a paso dt)"""
     type='Single Linear Channel'
-    def __init__(self,pars,Boundaries=[0],Proc='Nash',dt=1):
+    def __init__(self,pars : Union[List[Tuple[float,float]],List[float],np.ndarray],Boundaries : List[float] =[0],Proc : str='Nash',dt : float =1):
+       """
+            pars : Union[List[Tuple[float,float]],List[float],np.ndarray]
+                Lista de flotantes o tuplas con los valores del tiempo de residencia (k) y número de reservorios (n), en caso que Proc='Nash', o lista, tupla o array con ordenadas de Hidrograma Unitario, en caso que  Proc='UH'
+            InitialConditions : List [float]
+                Lista  con el valor de la condición inicial de almacenamiento en tramo 
+            Boundaries : List[float]
+                Lista con el hidrograma de entrada, de resolución dt
+            dt : float
+                Resolución del hidrograma de entrada, por defecto se establece en la unidad
+            Proc: str
+                Procedimiento para transferencia: 'Nash' (cascada de Nash, debe proveerse k y n) y 'UH' (Hidrograma Unitario, lista, tupla o array con valoress de ordenadass)
+
+       """
+       self.Proc=Proc
+       if self.Proc == 'Nash' and not isinstance(pars,(list,tuple,np.ndarray)):
+           raise TypeError("Proc 'Nash' seleccionado. Debe proveerse una lista o tupla con parámetros k y n")
+       elif self.Proc == 'UH' and not isinstance(pars,(list,tuple,np.ndarray)):
+           raise TypeError("Proc 'UH' seleccionado. Debe proveerse una lista, tupla o array con ordenadas de Hidrograma Unitario")
        self.pars=np.array(pars,dtype='float')
        self.Inflow=np.array(Boundaries,dtype='float')
-       self.Proc=Proc
        self.dt=dt
        if self.Proc == 'Nash':
             self.k=self.pars[0]
             self.n=self.pars[1]
             self.u=gammaDistribution(self.n,self.k,self.dt)
-       if self.Proc == 'UH':
+       elif self.Proc == 'UH':
             self.u=self.pars
+       else:
+            raise ValueError("Argumento Proc inválido. Debe ser 'Nash' o 'UH'")
        self.Outflow=np.array([[0]]*(len(self.Inflow)+len(self.u)-1))
     def computeOutFlow(self):
         I=getPulseMatrix(self.Inflow,self.u)
@@ -725,18 +891,43 @@ class LinearChannel:
 
 class LinearNet:
     """
-    Método de tránsito hidrológico implementado sobre la base de teoría de sistemas lineales. Así, considera al tránsito de energía, materia o información como un proceso lineal desde N nodos superiores hacia un nodo inferior. Específicamente, sea I=[I1,I2,...,IN] un vector de pulsos generados por un borde y U=[U1,U2,..,UM] una función de distribución que representa el prorateo de un pulso unitario durante el tránsito desde un nodo superior (borde) hacia un nodo inferior (salida), aplicando las propiedades de proporcionalidad y aditividad es posible propagar cada pulso a partir de U y luego mediante su suma obtener el aporte de este tránsito sobre el nodo inferior, mediante convolución. Numéricamente el sistema se representa como una transformación matricial (matriz de pulsos*u=vector de aportes). Consecuentemente, el tránsito se realiza para cada borde y la suma total de estos tránsitos constituye la señal transitada sobre el nodo inferior.  Condiciones de borde: array 2D con hidrogramas en nodos superiores del tramo, por columna. Parámetros: función de distribución (proc='EmpDist') o tiempo de residencia (k) y número de reservorios (n), si se desea utilizar el método de hidrograma unitario de Nash (proc='Nash'), pars es un array bidimensional en donde la información necesaria para cada nodo se presenta por fila (parámetros de nodo). El parámetro dt refiere a la longitud de paso de cálculo para el método de integración, siendo dt=1 la resolución nativa de los hidrogramas de entrada provistos. Importante, las funciones de transferencia deben tener la misma cantidad de ordenadas (dimensión del vector) 
+    Método de tránsito hidrológico implementado sobre la base de teoría de sistemas lineales. Así, considera al tránsito de energía, materia o información como un proceso lineal desde N nodos superiores hacia un nodo inferior. Específicamente, sea I=[I1,I2,...,IN] un vector de pulsos generados por un borde y U=[U1,U2,..,UM] una función de distribución que representa el prorateo de un pulso unitario durante el tránsito desde un nodo superior (borde) hacia un nodo inferior (salida), aplicando las propiedades de proporcionalidad y aditividad es posible propagar cada pulso a partir de U y luego mediante su suma obtener el aporte de este tránsito sobre el nodo inferior, mediante convolución. Numéricamente el sistema se representa como una transformación matricial (matriz de pulsos*u=vector de aportes). Consecuentemente, el tránsito se realiza para cada borde y la suma total de estos tránsitos constituye la señal transitada sobre el nodo inferior.  Condiciones de borde: array 2D con hidrogramas en nodos superiores del tramo, por columna. Parámetros: función de distribución (proc='UH') o tiempo de residencia (k) y número de reservorios (n), si se desea utilizar el método de hidrograma unitario de Nash (proc='Nash'), pars es un array bidimensional en donde la información necesaria para cada nodo se presenta por fila (parámetros de nodo). El parámetro dt refiere a la longitud de paso de cálculo para el método de integración, siendo dt=1 la resolución nativa de los hidrogramas de entrada provistos. Importante, las funciones de transferencia deben tener la misma cantidad de ordenadas (dimensión del vector) 
     """
+    pars : np.ndarray
+    """Matriz con parámetros de propagación (j-vectores fila)"""
+    Inflows : np.ndarray
+    """Matriz con hidrogramas de entrada (j-vectores columna)"""
+    Proc : str
+    """Procedimiento, admite 'Nash' y 'UH'"""
+    dt : float
+    """Longitud del paso de cómputo"""
     type='Linear Routing System. System of Linear Channels'
-    def __init__(self,pars,Boundaries=[0],Proc='Nash',dt=1):
+    def __init__(self,pars : Union[List[Tuple[float,float]],List[float],np.ndarray],Boundaries : Union[List[float],np.ndarray] ,Proc : str = 'Nash',dt : float =1):
+        """
+            pars : List[Tuple[float,float],float,np.ndarray]
+                Lista de tuplas o de longitud 2 con los valores del tiempo de residencia (k) y número de reservorios (n), en caso que Proc='Nash', o array con ordenadas de cada Hidrograma Unitario, en caso que  Proc='UH', para cada nodo de entrada
+            Boundaries : Union[List[float],np.ndarray]
+                Lista de longitud j o array con los hidrogramas de los nodos de entrada, ordenados como j-vectores columna 
+            dt : float
+                Resolución del hidrograma de entrada, por defecto se establece en la unidad
+            Proc: str
+                Procedimiento para transferencia: 'Nash' (cascada de Nash, debe proveerse k y n) o 'UH' (Hidrogramas Unitarios, array con j-vectores fila con valores de ordenadas)
+
+        """
+        self.Proc=Proc
+        if self.Proc == 'Nash' and not isinstance(pars,(list,tuple)):
+           raise TypeError("Proc 'Nash' seleccionado. Debe proveerse una lista con tuplas con k y n correspondientes para la propagación de cada hidrograma de entrada, ordenados por fila")
+        elif self.Proc == 'UH' and not isinstance(pars,(list,tuple,np.ndarray)):
+           raise TypeError("Proc 'UH' seleccionado. Debe proveerse un array correspondiente con los UH, ordenados por fila, para la propagación de cada hidrograma de entrada")
+        if not (self.Proc=='Nash' or self.Proc=='UH'):
+           raise ValueError("Argumento Proc inválido. Debe ser 'Nash' o 'UH'")
         self.pars=np.array(pars,dtype='float')
         self.Inflows=np.array(Boundaries,dtype='float')
-        self.Proc=Proc
         self.dt=dt
     def computeOutflow(self):
         j=0
         for channel_j in range(1,len(self.Inflows[0,:])+1):
-            linear=LinearChannel(pars=self.pars[j,:],Boundaries=self.Inflows[:,j],dt=self.dt)
+            linear=LinearChannel(pars=self.pars[j,:],Boundaries=self.Inflows[:,j],dt=self.dt,Proc=self.Proc)
             linear.computeOutFlow()
             if j==0:
                 self.Outflow=linear.Outflow
@@ -755,17 +946,59 @@ class LinearNet:
 
 class HOSH4P1L:
     """
-    Modelo Operacional de Transformación de Precipitación en Escorrentía de 4 parámetros (estimables). Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (sin efecto de base).
+    Modelo Operacional de Transformación de Precipitación en Escorrentía de 4 parámetros (estimables). Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (sin efecto de base). Rutina de propagación por 'UH' arbitario (e.g. generado por triangularDistributon) o por función de transsferencia gamma. 
     """
+    maxSurfaceStorage : float
+    """Almacenamiento Máximo Superficial (reservorio de retención)"""
+    maxSoilStorage : float
+    """Almacenamiento máximo en el Suelo (reservorio de producción)"""
+    Proc : str
+    """Procedimiento de propagación ('Nash' o 'UH')"""
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    SurfaceStorage: np.ndarray
+    """Almacenamiento en reservorio de retención (serie temporal)"""
+    SoilStorage : np.ndarray
+    """Almacenamiento en resservorio de producción (sserie temporal)"""
+    Runoff : np.ndarray
+    """Transferencia horizontal: escorrentía total (serie temporal)"""
+    Infiltration : np.ndarray
+    """Recarga de reservorio de producción (serie temporal)"""
+    CumPrecip: np.ndarray
+    "Precipitación acumulada durante el evento (serie temporal)"
+    NetRainfall: np.ndarray
+    """Precipitación neta (serie temporal)"""
+    EVR1 : np.ndarray
+    """Evapotranspiración real reservorio de abstracción"""
+    EVR2 : np.ndarray
+    """Evapotranspiración real reservorio de producción"""
+    Q : float
+    """Flujo encauzado (serie temporal)"""
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
+    def __init__(self,pars : Union[List[Tuple[float,float]],List[float],np.ndarray],Boundaries : Union[List[float],np.ndarray] =[[0],[0]],InitialConditions : Union[List[Tuple[float,float]],List[float]] =[0,0],Proc : str ='Nash'):
+        """
+            pars : List[Tuple[float,float],float,np.ndarray]
+                Lista con los valores de maxSurFaceStorage (reservorio de abstracción), maxSoilStorage (reservorio de producción) y parámetros tiempo de residencia (k) y n reservorios (caso Proc='Nash') o con lista,tupla o array con ordenadas de Hidrograma Unitario (caso Proc='UH') 
+            Boundaries : Union[List[float],np.ndarray]
+                Lista o array2d compuesto por vectores (columna) de precipitación y evapotranspiración potencial (condiciones de borde) 
+            InitialConditions : Union[List[Tuple[float,float]],List[float]]
+                Lista o array1d con valores de almacenamiento inicial en reservorio de abstracción y en reservorio de producción
+            Proc: str
+                Procedimiento para transferencia: 'Nash' (cascada de Nash, debe proveerse k y n) o 'UH' (Hidrogramas Unitarios, array con j-vectores fila con valores de ordenadas)
+        """
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
         self.soilSystem=SCSReservoirs(pars=[self.maxSurfaceStorage,self.maxSoilStorage])
         if Proc == 'Nash':
-            self.routingSystem=LinearChannel(pars=[pars[2],pars[3]])
+            if isinstance(Proc,(list,tuple)):
+                self.routingSystem=LinearChannel(pars=[pars[2],pars[3]],Proc='Nash')
+            else:
+                raise TypeError("If Proc='Nash' a list or tuple with k and n must be provided")    
         elif Proc == 'UH':
-            self.routingSystem=LinearChannel(pars=pars[2],Proc='UH')
+            if isinstance(Proc,(list,tuple,np.ndarray)):
+                self.routingSystem=LinearChannel(pars=pars[2],Proc='UH')
+            else:
+                raise TypeError("If Proc='UH' an array with unit hydrograph ordinates must be provided") 
         else:
             raise Exception("invalid Proc. Must be one of: Nash, UH")
         self.Precipitation=np.array(Boundaries[:,0],dtype='float')
@@ -823,8 +1056,44 @@ class HOSH4P2L:
     """
     Modelo Operacional de Transformación de Precipitación en Escorrentía de 4/6 parámetros (estimables), con 2 capas de suelo. Hidrología Operativa Síntesis de Hidrograma. Método NRCS, perfil de suelo con 2 reservorios de retención (zona superior) y un reservorio linear (zona inferior). Rutea utilizando una función respuesta de pulso unitario arbitraria o mediante na cascada de Nash (se debe especificar tiempo de residencia y número de reservorios)
     """
+    maxSurfaceStorage : float
+    """Almacenamiento Máximo Superficial (reservorio de retención)"""
+    maxSoilStorage : float
+    """Almacenamiento máximo en el Suelo (reservorio de producción)"""
+    Proc : str
+    """Procedimiento de propagación ('Nash' o 'UH')"""
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    SurfaceStorage: np.ndarray
+    """Almacenamiento en reservorio de retención (serie temporal)"""
+    SoilStorage : np.ndarray
+    """Almacenamiento en resservorio de producción (sserie temporal)"""
+    Runoff : np.ndarray
+    """Transferencia horizontal: escorrentía total (serie temporal)"""
+    Infiltration : np.ndarray
+    """Recarga de reservorio de producción (serie temporal)"""
+    CumPrecip: np.ndarray
+    "Precipitación acumulada durante el evento (serie temporal)"
+    NetRainfall: np.array
+    """Precipitación neta (serie temporal)"""
+    EVR1 : np.ndarray
+    """Evapotranspiración real reservorio de abstracción"""
+    EVR2 : np.ndarray
+    """Evapotranspiración real reservorio de producción"""
+    Q : float
+    """Flujo encauzado (serie temporal)"""
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='Nash'):
+    def __init__(self,pars: Union[List[Tuple[float,float]],List[float],np.ndarray],Boundaries : Union[List[float],np.ndarray] =[[0],[0]],InitialConditions : Union[List[Tuple[float,float]],List[float]] =[0,0],Proc : str ='Nash'):
+        """
+            pars : List[Tuple[float,float],float,np.ndarray]
+                Lista con los valores de maxSurFaceStorage (reservorio de abstracción), maxSoilStorage (reservorio de producción), coeficiente de prorateo (flujo directo/flujo demorado, phi), coeficiente de recesión (autovalor, kb) y parámetros tiempo de residencia (k) y n reservorios (caso Proc='Nash') o con lista,tupla o array con ordenadas de Hidrograma Unitario (caso Proc='UH') 
+            Boundaries : Union[List[float],np.ndarray]
+                Lista o array2d compuesto por vectores (columna) de precipitación y evapotranspiración potencial (condiciones de borde) 
+            InitialConditions : Union[List[Tuple[float,float]],List[float]]
+                Lista o array1d con valores de almacenamiento inicial en reservorio de abstracción y en reservorio de producción
+            Proc: str
+                Procedimiento para transferencia: 'Nash' (cascada de Nash, debe proveerse k y n) o 'UH' (Hidrogramas Unitarios, array con j-vectores fila con valores de ordenadas)
+        """
         self.RoutingProc=Proc
         self.maxSurfaceStorage=pars[0]
         self.maxSoilStorage=pars[1]
@@ -898,8 +1167,24 @@ class GR4J:
     """
     Modelo Operacional de Transformación de Precipitación en Escorrentía de Ingeniería Rural de 4 parámetros (CEMAGREF). A diferencia de la versión original, la convolución se realiza mediante producto de matrices. Parámetros: Máximo almacenamiento en reservorio de producción, tiempo al pico (hidrograma unitario),máximo almacenamiento en reservorio de propagación, coeficiente de intercambio.
     """
+    Precipitation : np.ndarray
+    """Precipitación (serie temporal)"""
+    EVP : np.ndarray
+    """Evapotranspiración (serie temporal)"""
+    Runoff : np.ndarray
+    """Escorentía reservorio de producción (serie temporal)"""
+    Q: np.ndarray
+    """Flujo encauzado (serie temporal)"""
     type='PQ Model'
-    def __init__(self,pars,Boundaries=[0],InitialConditions=[0,0],Proc='CEMAGREF SH'):
+    def __init__(self,pars : Union[List[float],tuple],Boundaries : Union[List[float],np.ndarray] =[[0],[0]],InitialConditions : Union[List[Tuple[float,float]],List[float]]=[0,0],Proc='CEMAGREF SH'):
+        """
+            pars : Union[List[float],tuple]
+                Lista o tupla con los valores de Almacenamiento Máximo en Reservorio de Producción, Tiempo al pico , Almacenamiento Máximo en Reservorio de Tránsito y coeficiente de intercambio o fugas 
+            Boundaries : Union[List[float],np.ndarray]
+                Lista o array2d compuesto por vectores (columna) de precipitación y evapotranspiración potencial (condiciones de borde) 
+            InitialConditions : Union[List[Tuple[float,float]],List[float]]
+                Lista o array1d con valores de almacenamiento inicial en reservorio de producción y en reservorio de tránsito
+        """
         self.RoutingProc=Proc
         self.InitialConditions=InitialConditions
         self.prodStoreMaxStorage=pars[0]
