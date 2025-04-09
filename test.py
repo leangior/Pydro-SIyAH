@@ -29,6 +29,6 @@ plt.ylabel("H[m]")
 plt.xlabel("t")
 plt.show()
 
-Le puse como parámetro la fecha de pronóstico, cuestión de facilitar el análisis retrospectivo. Aquí perspectiva para el Paraná en Rosario, si hubiera sido emitida el 30/6. No hubiera estado tan mal, che... Igual tendría que realizar un análisis más exhaustivo y me inclino por modelos incluyendo más regresores (ya que hay más hidrómetros y cuencas afleuntes en tramo.. este año por que no escupieron ni una gota de ferné...). Abz grande y buen fin de semana!
+# Le puse como parámetro la fecha de pronóstico, cuestión de facilitar el análisis retrospectivo. Aquí perspectiva para el Paraná en Rosario, si hubiera sido emitida el 30/6. No hubiera estado tan mal, che... Igual tendría que realizar un análisis más exhaustivo y me inclino por modelos incluyendo más regresores (ya que hay más hidrómetros y cuencas afleuntes en tramo.. este año por que no escupieron ni una gota de ferné...). Abz grande y buen fin de semana!
 
-Le puse como parámetro la fecha de pronóstico, cuestiónd e facilitar el análisis retrospectivo. Aquí perspectiva para el Uruguay en San javier 
+# Le puse como parámetro la fecha de pronóstico, cuestiónd e facilitar el análisis retrospectivo. Aquí perspectiva para el Uruguay en San javier 
