@@ -340,7 +340,33 @@ def getPersistenceForecast(serie, timestart, score, use_logs=False,
     forecast_series = pd.DataFrame(X, index=pd.to_datetime(t))
     return forecast_series
 
-#hasta aquí todos revisados en la migra y andan OK con series obtenidas mediante APIs REST (deben ser regularizadas). LMG 20241122
+#hasta aquí todos revisados en la migra y andan OK con series obtenidas medieante GetSerires. LMG 20241122
+
+#Anomaly signal ARIMA model computation and forecasting generation (by autoarima)
+def get_auto_arima_forecast(anom, method='monthly'):
+    model = ARIMA(anom, order=(5,1,0))  # auto_arima functionality
+    model_fit = model.fit()
+    forecast = model_fit.get_forecast(steps=12)
+    central = forecast.predicted_mean
+    conf_int = forecast.conf_int()
+    
+    t0 = anom.index.max()
+    horizon = len(central)
+    
+    if method == 'monthly':
+        t = pd.date_range(t0 + pd.DateOffset(months=1), periods=horizon, freq='M')
+    elif method == 'weekly':
+        t = pd.date_range(t0 + pd.DateOffset(weeks=1), periods=horizon, freq='W')
+    
+    forecast_df = pd.DataFrame({
+        'lo2': conf_int.iloc[:, 0],
+        'lo1': conf_int.iloc[:, 1],
+        'central': central,
+        'up1': conf_int.iloc[:, 2],
+        'up2': conf_int.iloc[:, 3]
+    }, index=t)
+    
+    return forecast_df
 
 if __name__ == "__main__":
     import sys
