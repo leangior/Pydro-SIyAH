@@ -1,5 +1,5 @@
-from src import getSeriesApp as getSeries
-from src import DataDrivenMethods as dd
+import getSeriesApp as getSeries
+import DataDrivenMethods as dd
 import matplotlib.pyplot as plt
 serie=getSeries.getSerie(155,"1991-01-01","2025-03-30")
 anomaly=dd.getCivilAnom(serie)
